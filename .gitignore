@@ -1,0 +1,44 @@
+/node_modules
+/oh_modules
+/local.properties
+/.idea
+**/build
+/.hvigor
+.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/.appanalyzer
+
+# OpenHarmony 构建产物
+build/
+*.hap
+*.app
+*.log
+*.tmp
+
+# 依赖
+node_modules/
+.hvigor/
+*.lock
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE - 选择性忽略
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/vcs.xml
+!.idea/modules.xml
+!.idea/.name
+!.idea/runConfigurations/
+
+# 环境文件
+.env
+*.local
+local.properties
