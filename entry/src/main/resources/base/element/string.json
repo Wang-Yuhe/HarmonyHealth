@@ -10,7 +10,20 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "鸿蒙健康"
+    },
+    {
+      "name": "health_permission_reason",
+      "value": "同步健康数据至云端"
+    },
+    {
+      "name": "sync_permission_reason",
+      "value": "实现设备间数据互通"
+    },
+    {
+      "name": "internet_permission_reason",
+      "value": "获取云端健康分析服务"
     }
   ]
 }
+

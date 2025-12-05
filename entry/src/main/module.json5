@@ -16,7 +16,7 @@
         "name": "EntryAbility",
         "srcEntry": "./ets/entryability/EntryAbility.ets",
         "description": "$string:EntryAbility_desc",
-        "icon": "$media:layered_image",
+        "icon": "$media:startIcon",
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
@@ -29,6 +29,13 @@
             "actions": [
               "ohos.want.action.home"
             ]
+          }
+        ],
+        // 新增元数据声明
+        "metadata": [
+          {
+            "name": "healthdata.feature",
+            "value": "true"
           }
         ]
       }
@@ -44,7 +51,44 @@
             "name": "ohos.extension.backup",
             "resource": "$profile:backup_config"
           }
-        ],
+        ]
+      }
+    ],
+    // 修正后的权限声明
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.READ_HEALTH_DATA",
+        "reason": "$string:health_permission_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.DISTRIBUTED_DATASYNC",
+        "reason": "$string:sync_permission_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "always"
+        }
+      },
+      {
+        "name": "ohos.permission.INTERNET",
+        "reason": "$string:internet_permission_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "always"
+        }
+      }
+    ],
+    // 新增自定义权限声明（可选）
+    "definePermissions": [
+      {
+        "name": "ohos.permission.HEALTH_DATA_SYNC",
+        "grantMode": "system_grant",
+        "availableLevel": "normal",
+        "provisionEnable": true,
+        "distributedSceneEnable": true
       }
     ]
   }

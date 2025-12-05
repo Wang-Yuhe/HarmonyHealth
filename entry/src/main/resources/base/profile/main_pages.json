@@ -1,5 +1,13 @@
 {
   "src": [
-    "pages/Index"
+    "pages/Index",
+    "pages/LoginPage",
+    "pages/HomePage",
+    "pages/ExplorePage",
+    "pages/ProfilePage",
+    "pages/HomeTo/BodyInfoPage",
+    "pages/HomeTo/DiseasePage",
+    "pages/HomeTo/SleepPage",
+    "pages/HomeTo/StepsPage"
   ]
 }
