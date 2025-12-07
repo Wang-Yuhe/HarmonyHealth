@@ -16,11 +16,11 @@ export struct myNavigator {
       // 主页导航
       this.buildNavItem($r('app.media.homeIcon'), '主页', 0, 'pages/HomePage')
 
-      // 探索导航
+      // 健康信息推荐功能按钮
       this.buildNavItem($r('app.media.exploreIcon'), '探索', 1, 'pages/ExplorePage')
 
-      // 我的导航
-      this.buildNavItem($r('app.media.profileIcon'), '我的', 2, 'pages/ProfilePage')
+      // 个人主页，能够咨询，可以询问AI查询
+      this.buildNavItem($r('app.media.profileIcon'), '咨询', 2, 'pages/AskAIPage')
     }
     .width('100%')
     .height(60)

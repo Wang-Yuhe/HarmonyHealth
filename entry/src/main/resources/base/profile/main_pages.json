@@ -4,7 +4,7 @@
     "pages/LoginPage",
     "pages/HomePage",
     "pages/ExplorePage",
-    "pages/ProfilePage",
+    "pages/AskAIPage",
     "pages/HomeTo/BodyInfoPage",
     "pages/HomeTo/DiseasePage",
     "pages/HomeTo/SleepPage",

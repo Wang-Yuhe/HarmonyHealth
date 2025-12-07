@@ -23,6 +23,10 @@
     {
       "name": "internet_permission_reason",
       "value": "获取云端健康分析服务"
+    },
+    {
+      "name": "Enter",
+      "value": "发送"
     }
   ]
 }
