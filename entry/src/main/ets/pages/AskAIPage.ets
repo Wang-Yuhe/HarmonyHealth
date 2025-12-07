@@ -4,6 +4,8 @@
  */
 import { myNavigator } from '../common/components/Navigator';
 import http from '@ohos.net.http';
+import common from '@ohos.app.ability.common';
+import dataPreferences from '@ohos.data.preferences';
 
 interface ChatMessage {
   id: number;
@@ -26,40 +28,54 @@ interface AIResponse {
 @Entry
 @Component
 struct AskAIPage {
+  @State historySnapshot: string = '[]'
   @State messages: ChatMessage[] = []
   @State inputText: string = ''
   @State isThinking: boolean = false
   private nextId: number = 1
   private chatScroller: Scroller = new Scroller()
 
+  private static readonly PREF_FILE: string = 'ask_ai_history'
+  private static readonly HISTORY_KEY: string = 'history'
+  private preferences?: dataPreferences.Preferences
+
+  aboutToAppear() {
+    this.restoreMessages()
+  }
+
   build() {
     Stack() {
       Column() {
         this.HeaderSection()
 
-        Scroll(this.chatScroller) {
-          Column({ space: 12 }) {
-            if (this.messages.length === 0) {
-              this.EmptyPlaceholder()
-            } else {
-              ForEach(this.messages, (msg: ChatMessage) => {
-                this.MessageBubble(msg)
-              }, (msg: ChatMessage) => msg.id.toString())
-            }
+        Column() {
+          this.ChatToolbar()
 
-            if (this.isThinking) {
-              this.TypingIndicator()
+          Scroll(this.chatScroller) {
+            Column({ space: 12 }) {
+              if (this.messages.length === 0) {
+                this.EmptyPlaceholder()
+              } else {
+                ForEach(this.messages, (msg: ChatMessage) => {
+                  this.MessageBubble(msg)
+                }, (msg: ChatMessage) => msg.id.toString())
+              }
+
+              if (this.isThinking) {
+                this.TypingIndicator()
+              }
             }
+            .width('100%')
           }
-          .width('100%')
+          .layoutWeight(1)
+          .padding({
+            left: 16,
+            right: 16,
+            top: 8,
+            bottom: 12
+          })
         }
         .layoutWeight(1)
-        .padding({
-          left: 16,
-          right: 16,
-          top: 20,
-          bottom: 12
-        })
         .backgroundColor('#FFFFFF')
         .borderRadius({ topLeft: 32, topRight: 32 })
         .margin({ top: -18 })
@@ -79,24 +95,59 @@ struct AskAIPage {
 
   @Builder
   private HeaderSection() {
-    Column({ space: 4 }) {
-      Text('AI 智能问诊')
-        .fontSize(24)
-        .fontColor('#FFFFFF')
-        .fontWeight(FontWeight.Medium)
-      Text('描述症状或提问，AI 将即时反馈建议')
-        .fontSize(14)
-        .fontColor('rgba(255,255,255,0.85)')
+    Row({ space: 0 }) {
+      Column({ space: 4 }) {
+        Text('AI 智能问诊')
+          .fontSize(24)
+          .fontColor('#FFFFFF')
+          .fontWeight(FontWeight.Medium)
+        Text('描述症状或提问，AI 将即时反馈建议')
+          .fontSize(14)
+          .fontColor('rgba(255,255,255,0.85)')
+      }
+      .layoutWeight(1)
+      .padding({
+        left: 24,
+        right: 24,
+        top: 56,
+        bottom: 32
+      })
+      .backgroundColor('#5C7CFF')
+      .borderRadius({ bottomLeft: 32, bottomRight: 32 })
+
+      
     }
+    .alignItems(VerticalAlign.Center)
+    .justifyContent(FlexAlign.SpaceBetween)
     .width('100%')
     .padding({
-      left: 24,
-      right: 24,
-      top: 56,
-      bottom: 32
+      top: 12,
+      bottom: 12
     })
-    .backgroundColor('#5C7CFF')
-    .borderRadius({ bottomLeft: 32, bottomRight: 32 })
+    .backgroundColor('transparent')
+  }
+
+  @Builder
+  private ChatToolbar() {
+    Row() {
+      Button('+')
+        .width(44)
+        .height(44)
+        .type(ButtonType.Circle)
+        .fontSize(24)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#3F6BFF')
+        .shadow({ radius: 8, color: '#1A3F6BFF', offsetY: 2 })
+        .onClick(() => this.startNewConversation())
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.End)
+    .padding({
+      left: 16,
+      right: 16,
+      top: 16,
+      bottom: 4
+    })
   }
 
   @Builder
@@ -216,6 +267,7 @@ struct AskAIPage {
     }
     const userMsg: ChatMessage = { id: this.nextId++, from: 'user', text: content }
     this.messages = [...this.messages, userMsg]
+    this.persistMessages()
     this.inputText = ''
     this.scrollToLatest()
     this.fetchAIReply(content)
@@ -240,8 +292,10 @@ struct AskAIPage {
       const data: AIResponse = JSON.parse(response.result as string)
       const replyText: string = data?.choices?.[0]?.message?.content ?? 'AI 暂无回复'
       this.messages = [...this.messages, { id: this.nextId++, from: 'ai', text: replyText }]
+      this.persistMessages()
     } catch (err) {
       this.messages = [...this.messages, { id: this.nextId++, from: 'ai', text: '网络异常，请稍后再试' }]
+      this.persistMessages()
     } finally {
       client.destroy()
       this.isThinking = false
@@ -276,5 +330,60 @@ struct AskAIPage {
         animation: { duration: 180, curve: Curve.EaseOut }
       })
     }, 0)
+  }
+
+  private restoreMessages() {
+    (async () => {
+      try {
+        const pref = await this.ensurePreferences()
+        const stored = await pref.get(AskAIPage.HISTORY_KEY, '[]') as string
+        const parsed = JSON.parse(stored) as ChatMessage[]
+        if (Array.isArray(parsed)) {
+          this.messages = parsed
+          this.historySnapshot = stored
+          this.nextId = parsed.reduce((max, item) => Math.max(max, item.id), 0) + 1
+        } else {
+          this.resetMemory()
+        }
+      } catch (err) {
+        console.error('restoreMessages failed', JSON.stringify(err))
+        this.resetMemory()
+      }
+    })()
+  }
+
+  private persistMessages() {
+    const snapshot = JSON.stringify(this.messages)
+    this.historySnapshot = snapshot
+    ;(async () => {
+      try {
+        const pref = await this.ensurePreferences()
+        await pref.put(AskAIPage.HISTORY_KEY, snapshot)
+        await pref.flush()
+      } catch (err) {
+        console.error('persistMessages failed', JSON.stringify(err))
+      }
+    })()
+  }
+
+  private async ensurePreferences(): Promise<dataPreferences.Preferences> {
+    if (this.preferences) {
+      return this.preferences
+    }
+    const abilityContext = getContext(this) as common.UIAbilityContext
+    this.preferences = await dataPreferences.getPreferences(abilityContext, AskAIPage.PREF_FILE)
+    return this.preferences
+  }
+
+  private resetMemory() {
+    this.messages = []
+    this.nextId = 1
+    this.historySnapshot = '[]'
+  }
+
+  private startNewConversation() {
+    this.resetMemory()
+    this.persistMessages()
+    this.scrollToLatest()
   }
 }
