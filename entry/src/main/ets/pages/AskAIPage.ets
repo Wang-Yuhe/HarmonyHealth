@@ -3,6 +3,7 @@
  * @description AI 咨询页面
  */
 import { myNavigator } from '../common/components/Navigator';
+import http from '@ohos.net.http';
 
 interface ChatMessage {
   id: number;
@@ -10,11 +11,24 @@ interface ChatMessage {
   text: string;
 }
 
+interface AIMessage {
+  content?: string;
+}
+
+interface AIChoice {
+  message?: AIMessage;
+}
+
+interface AIResponse {
+  choices?: Array<AIChoice>;
+}
+
 @Entry
 @Component
 struct AskAIPage {
   @State messages: ChatMessage[] = []
   @State inputText: string = ''
+  @State isThinking: boolean = false
   private nextId: number = 1
   private chatScroller: Scroller = new Scroller()
 
@@ -31,6 +45,10 @@ struct AskAIPage {
               ForEach(this.messages, (msg: ChatMessage) => {
                 this.MessageBubble(msg)
               }, (msg: ChatMessage) => msg.id.toString())
+            }
+
+            if (this.isThinking) {
+              this.TypingIndicator()
             }
           }
           .width('100%')
@@ -193,20 +211,61 @@ struct AskAIPage {
   // 点击 Enter 后，把输入内容加入聊天列表
   private onSend() {
     const content = this.inputText.trim()
-    if (content.length === 0) {
+    if (content.length === 0 || this.isThinking) {
       return
     }
-
-    const userMsg: ChatMessage = {
-      id: this.nextId++,
-      from: 'user',
-      text: content
-    }
+    const userMsg: ChatMessage = { id: this.nextId++, from: 'user', text: content }
     this.messages = [...this.messages, userMsg]
     this.inputText = ''
     this.scrollToLatest()
+    this.fetchAIReply(content)
+  }
 
-    // AI 回应逻辑预留
+  private async fetchAIReply(question: string) {
+    this.isThinking = true
+    const client = http.createHttp()
+    try {
+      const response = await client.request('https://chat.deepseek.com/', {
+        method: http.RequestMethod.POST,
+        extraData: JSON.stringify({
+          prompt: question,
+          temperature: 0.3
+        }),
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + AppStorage.get<string>('aiToken')
+        },
+        expectDataType: http.HttpDataType.STRING
+      })
+      const data: AIResponse = JSON.parse(response.result as string)
+      const replyText: string = data?.choices?.[0]?.message?.content ?? 'AI 暂无回复'
+      this.messages = [...this.messages, { id: this.nextId++, from: 'ai', text: replyText }]
+    } catch (err) {
+      this.messages = [...this.messages, { id: this.nextId++, from: 'ai', text: '网络异常，请稍后再试' }]
+    } finally {
+      client.destroy()
+      this.isThinking = false
+      this.scrollToLatest()
+    }
+  }
+
+  @Builder
+  private TypingIndicator() {
+    Row() {
+      Text('AI 正在输入…')
+        .fontSize(13)
+        .fontColor('#7A7F8C')
+        .padding({
+          left: 12,
+          right: 12,
+          top: 6,
+          bottom: 6
+        })
+        .backgroundColor('rgba(92,124,255,0.08)')
+        .borderRadius(16)
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Start)
   }
 
   private scrollToLatest() {
