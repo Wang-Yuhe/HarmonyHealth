@@ -3,26 +3,14 @@
  * @description AI 咨询页面
  */
 import { myNavigator } from '../common/components/Navigator';
-import http from '@ohos.net.http';
 import common from '@ohos.app.ability.common';
 import dataPreferences from '@ohos.data.preferences';
+import { HealthAIService } from '../features/ai/service/HealthAIService'; 
 
 interface ChatMessage {
   id: number;
   from: 'user' | 'ai';
   text: string;
-}
-
-interface AIMessage {
-  content?: string;
-}
-
-interface AIChoice {
-  message?: AIMessage;
-}
-
-interface AIResponse {
-  choices?: Array<AIChoice>;
 }
 
 @Entry
@@ -270,38 +258,29 @@ struct AskAIPage {
     this.persistMessages()
     this.inputText = ''
     this.scrollToLatest()
-    this.fetchAIReply(content)
+
+
+    this.simulateAIReply(content)
   }
 
-  private async fetchAIReply(question: string) {
+  // 使用本地 HealthAIService 模拟 AI 回复（保留“正在输入”效果）
+  private simulateAIReply(question: string) {
     this.isThinking = true
-    const client = http.createHttp()
-    try {
-      const response = await client.request('https://chat.deepseek.com/', {
-        method: http.RequestMethod.POST,
-        extraData: JSON.stringify({
-          prompt: question,
-          temperature: 0.3
-        }),
-        header: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + AppStorage.get<string>('aiToken')
-        },
-        expectDataType: http.HttpDataType.STRING
-      })
-      const data: AIResponse = JSON.parse(response.result as string)
-      const replyText: string = data?.choices?.[0]?.message?.content ?? 'AI 暂无回复'
-      this.messages = [...this.messages, { id: this.nextId++, from: 'ai', text: replyText }]
+    setTimeout(() => {
+      const replyText = HealthAIService.buildAnswer(question)
+      const aiMsg: ChatMessage = {
+        id: this.nextId++,
+        from: 'ai',
+        text: replyText
+      }
+      this.messages = [...this.messages, aiMsg]
       this.persistMessages()
-    } catch (err) {
-      this.messages = [...this.messages, { id: this.nextId++, from: 'ai', text: '网络异常，请稍后再试' }]
-      this.persistMessages()
-    } finally {
-      client.destroy()
       this.isThinking = false
       this.scrollToLatest()
-    }
+    }, 800) // 模拟思考时间
   }
+
+  
 
   @Builder
   private TypingIndicator() {
