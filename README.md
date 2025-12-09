@@ -7,31 +7,101 @@
 - BackButton.ets：返回按键，位于页面左上角，点击返回上一个页面，使用方式参考
 
   ```TS
-  // BodyInfoPage.ets 身体数据页面
-  import { BackButton } from '../../common/components/BackButton'
-  
-  @Entry
-  @Component
-  struct BodyInfoPage {
-    build() {
-      Stack() {
-        // 主内容容器
-        Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-          Text('Hello')
-            .fontSize(30)
-            .fontColor('#000000')
+   build() {
+    Stack() {//stack辅助布局
+      // 主内容区域
+      Column() {
+        // 顶部标题（注意：不再手动加 margin 给 BackButton 留位置）
+        Row() {
+          Text(this.isRegisterMode ? '注册账号' : '注销账号')
+            .fontSize(24)
             .fontWeight(FontWeight.Bold)
+            .fontColor('#333333')
         }
         .width('100%')
-        .height('100%')
-  
-        BackButton()
+        .padding(24)
+        .justifyContent(FlexAlign.Center)
+
+        。。。
+ 
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#FFFFFF')
+      .backgroundColor('#F8FAFF')
+
+      // 返回按钮：固定在左上角
+      if (this.router) {
+        BackButton()
+          .position({ x: 2, y: 2 })
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  private toggleMode() {
+    this.isRegisterMode = !this.isRegisterMode;
+  }
+
+  private async handleSubmit() {
+    if (!this.username || !this.password) {
+      this.showToast('请输入用户名和密码');
+      return;
+    }
+
+    if (this.isRegisterMode) {
+      if (this.password !== this.confirmPassword) {
+        this.showToast('两次密码输入不一致');
+        return;
+      }
+      if (!this.email || !this.securityQuestion || !this.securityAnswer) {
+        this.showToast('请完善所有信息');
+        return;
+      }
+
+      try {
+        const context = this.getUIContext().getHostContext() as Context;
+        const success = await this.loginVM.register(
+          context,
+          this.username,
+          this.password,
+          this.email,
+          this.securityQuestion,
+          this.securityAnswer
+        );
+        if (success) {
+          this.showToast('注册成功');
+          this.router?.back();
+        } else {
+          this.showToast('用户已存在');
+        }
+      } catch (e) {
+        this.showToast('注册异常');
+      }
+    } else {
+      try {
+        const context = this.getUIContext().getHostContext() as Context;
+        const success = await this.loginVM.deleteUser(context, this.username, this.password);
+        if (success) {
+          this.showToast('注销成功');
+          this.router?.back();
+        } else {
+          this.showToast('用户名或密码错误');
+        }
+      } catch (e) {
+        this.showToast('注销异常');
+      }
     }
   }
+
+  private showToast(msg: string): void {
+    try {
+      this.promptAction?.showToast({ message: msg, duration: 2000 });
+    } catch (error) {
+      console.warn('Failed to show toast:', error);
+    }
+  }
+}
   ```
 
   

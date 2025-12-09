@@ -2,11 +2,14 @@
 @Entry
 @Component
 struct Index {
-  // 生命周期函数中启动加载
   aboutToAppear() {
-    // 直接跳转到登录页面
-    this.getUIContext().getRouter().replaceUrl({url: 'pages/LoginPage'});
+    try {
+      this.getUIContext().getRouter().replaceUrl({ url: 'pages/LoginPage' });
+    } catch (err) {
+      console.error('Index jump failed:', err);
+    }
   }
+
   build() {
   }
 }

@@ -3,6 +3,8 @@
     "pages/Index",
     "pages/LoginPage",
     "pages/HomePage",
+    "pages/RegisterPage",
+    "pages/ResetPasswordPage",
     "pages/ExplorePage",
     "pages/AskAIPage",
     "pages/HomeTo/BodyInfoPage",
