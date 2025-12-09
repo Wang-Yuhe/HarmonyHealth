@@ -1,23 +1,23 @@
-// BackButton.ets 通用返回按钮
+// BackButton.ets
+import { Router } from '@kit.ArkUI';
+
 @Component
 export struct BackButton {
+  @Consume router: Router; // 👈 消费父级提供的 router
+
   build() {
-    Stack() {
-      Button() {
-        Image($r('app.media.backButton'))
-          .width(24)
-          .height(24)
-      }
-      .type(ButtonType.Circle)
-      .backgroundColor('#FFFFFF')
-      .onClick(() => {
-        // 通过UIContext获取路由上下文
-        const uiContext = this.getUIContext();
-        uiContext.getRouter().back();
-      })
+    Button() {
+      Image($r('app.media.backButton'))
+        .width(24)
+        .height(24)
     }
-    .alignContent(Alignment.Start)
-    .padding({ top: 16, left: 16 })
-    .position({ x: 0, y: 0 })
+    .type(ButtonType.Circle)
+    .backgroundColor('#FFFFFF')
+    .onClick(() => {
+      this.router.back(); // ✅ 安全调用
+    })
+    .width(48)
+    .height(48)
+    .margin({ top: 16, left: 16 })
   }
 }
