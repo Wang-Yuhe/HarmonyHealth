@@ -7,10 +7,19 @@
 import relationalStore from '@ohos.data.relationalStore';
 import { Context } from '@kit.AbilityKit';
 import { User } from '../common/model/User';
-import { CREATE_USER_TABLE } from './Migrations/InitMigration';
+import { HealthData } from '../common/model/HealthData';
+import { CREATE_USER_TABLE, CREATE_HEALTH_TABLE } from './Migrations/InitMigration';
 
 export class HealthDB {
+  private static instance: HealthDB;
   private rdbStore: relationalStore.RdbStore | null = null;
+
+  public static getInstance(): HealthDB {
+    if (!HealthDB.instance) {
+      HealthDB.instance = new HealthDB();
+    }
+    return HealthDB.instance;
+  }
 
   async initDB(context: Context): Promise<void> {
     try {
@@ -20,6 +29,8 @@ export class HealthDB {
       };
       this.rdbStore = await relationalStore.getRdbStore(context, config);
       await this.rdbStore.executeSql(CREATE_USER_TABLE);
+      await this.rdbStore.executeSql(CREATE_HEALTH_TABLE);
+      
       /* 默认账号 admin/123456，仅首次 */
       const hasAdmin = await this.getUserByUsername('admin');
       if (!hasAdmin) {
@@ -36,6 +47,54 @@ export class HealthDB {
       console.error('initDB error:', e);
     }
   }
+
+  // ==========================================
+  // Health Data Operations
+  // ==========================================
+
+  async insertHealthData(data: HealthData): Promise<number> {
+    try {
+      const value: relationalStore.ValuesBucket = {
+        timestamp: data.timestamp,
+        heartRate: data.heartRate,
+        steps: data.steps,
+        calories: data.calories,
+        bloodOxygen: data.bloodOxygen
+      };
+      return await this.rdbStore!.insert('health_data', value);
+    } catch (e) {
+      console.error('insertHealthData error:', e);
+      return -1;
+    }
+  }
+
+  async getLatestHealthData(): Promise<HealthData | null> {
+    try {
+      const predicates = new relationalStore.RdbPredicates('health_data');
+      predicates.orderByDesc('timestamp'); // 按时间倒序
+      predicates.limitAs(1); // 取最新一条
+      
+      const result = await this.rdbStore!.query(predicates);
+      if (result.goToFirstRow()) {
+        const data = new HealthData(
+          result.getLong(result.getColumnIndex('heartRate')),
+          result.getLong(result.getColumnIndex('steps')),
+          result.getLong(result.getColumnIndex('calories')),
+          result.getLong(result.getColumnIndex('bloodOxygen'))
+        );
+        data.timestamp = result.getLong(result.getColumnIndex('timestamp'));
+        return data;
+      }
+      return null;
+    } catch (e) {
+      console.error('getLatestHealthData error:', e);
+      return null;
+    }
+  }
+
+  // ==========================================
+  // User Operations
+  // ==========================================
 
   async insertUser(user: User): Promise<number> {
     try {

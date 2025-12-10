@@ -10,6 +10,7 @@
     "pages/HomeTo/BodyInfoPage",
     "pages/HomeTo/DiseasePage",
     "pages/HomeTo/SleepPage",
-    "pages/HomeTo/StepsPage"
+    "pages/HomeTo/StepsPage",
+    "features/healthStatus/view/StatusPage" 
   ]
 }
