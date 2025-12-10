@@ -1,9 +1,8 @@
 // BackButton.ets
-import { Router } from '@kit.ArkUI';
+import { router } from '@kit.ArkUI';
 
 @Component
 export struct BackButton {
-  @Consume router: Router; // 👈 消费父级提供的 router
 
   build() {
     Button() {
@@ -14,7 +13,7 @@ export struct BackButton {
     .type(ButtonType.Circle)
     .backgroundColor('#FFFFFF')
     .onClick(() => {
-      this.router.back(); // ✅ 安全调用
+      router.back(); // ✅ 安全调用
     })
     .width(48)
     .height(48)

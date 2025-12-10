@@ -4,7 +4,7 @@
  */
 
 import { Context } from '@kit.AbilityKit';
-import { Router, PromptAction, window } from '@kit.ArkUI';
+import { Router, promptAction, PromptAction, window } from '@kit.ArkUI';
 import { LoginVM } from '../features/login/controller/LoginVM';
 import { BackButton } from '../common/components/BackButton';
 
