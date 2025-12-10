@@ -1,11 +1,90 @@
+import http from '@ohos.net.http';
+// 引入 Explore 模块已有的配置文件
+import configData from '../../explore/data/exploreConfig.json';
+
+// 定义 HTTP 请求相关的接口
+interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+interface ChatRequestData {
+  model: string;
+  messages: ChatMessage[];
+  temperature: number;
+}
+
+// 定义 API 响应接口
+interface ChoiceMessage {
+  content: string;
+}
+
+interface Choice {
+  message: ChoiceMessage;
+}
+
+interface ChatResponse {
+  choices: Choice[];
+}
+
 /**
  * @file HealthAIService.ets
- * @description 本地模拟健康 AI：关键词提取 + 富文本回答
+ * @description 健康 AI 服务：支持联网请求 DeepSeek，支持离线关键词匹配兜底
  */
-
 export class HealthAIService {
   /**
-   * 根据用户的健康问题描述，提取关键词并生成一段尽量全面的健康建议
+   * 尝试联网获取 AI 回答
+   * @param question 用户的问题
+   * @returns AI 回答文本，如果网络请求失败或配置无效则返回 null
+   */
+  static async fetchOnlineAnswer(question: string): Promise<string | null> {
+    try {
+      // 1. 检查配置是否存在
+      if (!configData.apiUrl || !configData.apiKey || configData.apiKey === 'YOUR_API_KEY_HERE') {
+        console.warn('HealthAIService: API Key not configured, falling back to offline.');
+        return null;
+      }
+
+      // 2. 创建 HTTP 请求
+      const httpRequest = http.createHttp();
+      const response = await httpRequest.request(configData.apiUrl, {
+        method: http.RequestMethod.POST,
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${configData.apiKey}`
+        },
+        extraData: JSON.stringify({
+          model: configData.model,
+          messages: [
+            {
+              role: "system",
+              content: "你是一个专业的健康咨询助手。请根据用户的描述提供健康建议、风险评估和生活指导。回答请保持条理清晰，语气亲切，不要使用Markdown格式。如果情况严重，请务必提醒用户线下就医。"
+            } as ChatMessage,
+            { role: "user", content: question } as ChatMessage
+          ],
+          temperature: 0.7
+        } as ChatRequestData),
+        expectDataType: http.HttpDataType.STRING,
+        readTimeout: 20000, // 设置 20 秒超时
+        connectTimeout: 20000
+      });
+      // 3. 解析响应
+      if (response.responseCode === 200) {
+        const result = JSON.parse(response.result as string) as ChatResponse;
+        if (result.choices && result.choices.length > 0 && result.choices[0].message) {
+          return result.choices[0].message.content;
+        }
+      } else {
+        console.error(`HealthAIService: HTTP Error ${response.responseCode}`);
+      }
+    } catch (error) {
+      console.error('HealthAIService Online Fetch Error:', JSON.stringify(error));
+    }
+    return null;
+  }
+
+  /**
+   * (离线兜底) 根据用户的健康问题描述，提取关键词并生成一段尽量全面的健康建议
    */
   static buildAnswer(question: string): string {
     // 预处理：去掉空格、统一成小写，便于匹配口语表达

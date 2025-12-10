@@ -259,28 +259,43 @@ struct AskAIPage {
     this.inputText = ''
     this.scrollToLatest()
 
-
-    this.simulateAIReply(content)
+    this.fetchSmartReply(content)
   }
 
-  // 使用本地 HealthAIService 模拟 AI 回复（保留“正在输入”效果）
-  private simulateAIReply(question: string) {
+  // 智能回复：优先尝试联网，失败则使用本地规则
+  private async fetchSmartReply(question: string) {
     this.isThinking = true
-    setTimeout(() => {
-      const replyText = HealthAIService.buildAnswer(question)
+    
+    try {
+      // 1. 尝试联网获取
+      let replyText = await HealthAIService.fetchOnlineAnswer(question)
+      
+      // 2. 如果联网失败（返回 null），则使用离线兜底
+      if (!replyText) {
+        // 模拟一点延迟，让体验更平滑，不至于瞬间失败
+        await new Promise<void>(resolve => setTimeout(resolve, 600))
+        replyText = HealthAIService.buildAnswer(question)
+      }
+
       const aiMsg: ChatMessage = {
         id: this.nextId++,
         from: 'ai',
-        text: replyText
+        text: replyText || '抱歉，我暂时无法回答。'
       }
       this.messages = [...this.messages, aiMsg]
       this.persistMessages()
+    } catch (err) {
+       console.error('SmartReply Error:', JSON.stringify(err))
+       // 异常兜底
+       const replyText = HealthAIService.buildAnswer(question)
+       const aiMsg: ChatMessage = { id: this.nextId++, from: 'ai', text: replyText }
+       this.messages = [...this.messages, aiMsg]
+       this.persistMessages()
+    } finally {
       this.isThinking = false
       this.scrollToLatest()
-    }, 800) // 模拟思考时间
+    }
   }
-
-  
 
   @Builder
   private TypingIndicator() {
