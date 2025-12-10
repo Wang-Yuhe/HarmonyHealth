@@ -2,6 +2,7 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { HealthDB } from '../database/HealthDB';
+import { ExploreAIService } from '../features/explore/service/ExploreAIService';
 
 const DOMAIN = 0x0000;
 
@@ -11,6 +12,9 @@ export default class EntryAbility extends UIAbility {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
       // 初始化数据库
       HealthDB.getInstance().initDB(this.context);
+      
+      // Start prefetching AI data in background
+      ExploreAIService.getInstance().prefetchAll();
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
@@ -24,7 +28,7 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
-
+    PersistentStorage.PersistProp('MedicalRecords', []);
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));

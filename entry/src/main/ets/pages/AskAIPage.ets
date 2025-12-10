@@ -1,11 +1,11 @@
 /**
  * @file AskAIPage.ets
- * @description AI 咨询页面
+ * @description AI 咨询页面 - UI 优化版
  */
 import { myNavigator } from '../common/components/Navigator';
 import common from '@ohos.app.ability.common';
 import dataPreferences from '@ohos.data.preferences';
-import { HealthAIService } from '../features/ai/service/HealthAIService'; 
+import { HealthAIService } from '../features/ai/service/HealthAIService';
 
 interface ChatMessage {
   id: number;
@@ -22,7 +22,6 @@ struct AskAIPage {
   @State isThinking: boolean = false
   private nextId: number = 1
   private chatScroller: Scroller = new Scroller()
-
   private static readonly PREF_FILE: string = 'ask_ai_history'
   private static readonly HISTORY_KEY: string = 'history'
   private preferences?: dataPreferences.Preferences
@@ -33,47 +32,60 @@ struct AskAIPage {
 
   build() {
     Stack() {
+      // 背景色
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#F5F7FA') // 更柔和的浅灰背景
+
       Column() {
         this.HeaderSection()
 
-        Column() {
-          this.ChatToolbar()
+        Stack({ alignContent: Alignment.Top }) {
+          Column() {
+            Scroll(this.chatScroller) {
+              Column({ space: 16 }) { // 增加气泡间距
+                if (this.messages.length === 0) {
+                  this.EmptyPlaceholder()
+                } else {
+                  // 顶部留白，避免被头部遮挡（如果头部悬浮）或太紧凑
+                  Blank().height(10)
 
-          Scroll(this.chatScroller) {
-            Column({ space: 12 }) {
-              if (this.messages.length === 0) {
-                this.EmptyPlaceholder()
-              } else {
-                ForEach(this.messages, (msg: ChatMessage) => {
-                  this.MessageBubble(msg)
-                }, (msg: ChatMessage) => msg.id.toString())
-              }
+                  ForEach(this.messages, (msg: ChatMessage) => {
+                    this.MessageBubble(msg)
+                  }, (msg: ChatMessage) => msg.id.toString())
+                }
 
-              if (this.isThinking) {
-                this.TypingIndicator()
+                if (this.isThinking) {
+                  this.TypingIndicator()
+                }
+
+                // 底部留白，防止被输入框遮挡
+                Blank().height(20)
               }
+              .width('100%')
+              .padding({ left: 16, right: 16 })
             }
-            .width('100%')
+            .layoutWeight(1)
+            .scrollBar(BarState.Auto)
+            .edgeEffect(EdgeEffect.Spring) // 增加回弹效果
           }
-          .layoutWeight(1)
-          .padding({
-            left: 16,
-            right: 16,
-            top: 8,
-            bottom: 12
-          })
+          .width('100%')
+          .height('100%')
+
+          // 悬浮的新建对话按钮
+          this.FloatingToolbar()
         }
         .layoutWeight(1)
-        .backgroundColor('#FFFFFF')
-        .borderRadius({ topLeft: 32, topRight: 32 })
-        .margin({ top: -18 })
-        .clip(true)
+        .width('100%')
+        .backgroundColor('#F5F7FA')
 
         this.InputArea()
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#E8F1FF')
+      // 避开底部导航栏高度
+      .padding({ bottom: 60 })
 
       myNavigator()
     }
@@ -83,78 +95,94 @@ struct AskAIPage {
 
   @Builder
   private HeaderSection() {
-    Row({ space: 0 }) {
-      Column({ space: 4 }) {
-        Text('AI 智能问诊')
-          .fontSize(24)
-          .fontColor('#FFFFFF')
-          .fontWeight(FontWeight.Medium)
-        Text('描述症状或提问，AI 将即时反馈建议')
-          .fontSize(14)
-          .fontColor('rgba(255,255,255,0.85)')
-      }
-      .layoutWeight(1)
-      .padding({
-        left: 24,
-        right: 24,
-        top: 56,
-        bottom: 32
-      })
-      .backgroundColor('#5C7CFF')
-      .borderRadius({ bottomLeft: 32, bottomRight: 32 })
+    Column() {
+      Row() {
+        Column({ space: 6 }) {
+          Text('AI 智能问诊')
+            .fontSize(26)
+            .fontColor('#FFFFFF')
+            .fontWeight(FontWeight.Bold)
+          Text('您的 24 小时专属健康顾问')
+            .fontSize(14)
+            .fontColor('rgba(255,255,255,0.9)')
+        }
+        .alignItems(HorizontalAlign.Start)
 
-      
+        // 移除不存在的app_icon引用
+        Blank().width(48).height(48)
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.SpaceBetween)
+      .alignItems(VerticalAlign.Center)
     }
-    .alignItems(VerticalAlign.Center)
-    .justifyContent(FlexAlign.SpaceBetween)
     .width('100%')
     .padding({
-      top: 12,
-      bottom: 12
+      left: 24,
+      right: 24,
+      top: 50, // 避开状态栏
+      bottom: 24
     })
-    .backgroundColor('transparent')
+    // 渐变背景
+    .linearGradient({
+      angle: 135,
+      colors: [['#5C7CFF', 0.0], ['#4A65E0', 1.0]]
+    })
+    .shadow({ radius: 10, color: 'rgba(92, 124, 255, 0.3)', offsetY: 4 })
+    .borderRadius({ bottomLeft: 24, bottomRight: 24 })
+    .zIndex(10)
   }
 
   @Builder
-  private ChatToolbar() {
+  private FloatingToolbar() {
     Row() {
-      Button('+')
-        .width(44)
-        .height(44)
-        .type(ButtonType.Circle)
-        .fontSize(24)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#3F6BFF')
-        .shadow({ radius: 8, color: '#1A3F6BFF', offsetY: 2 })
-        .onClick(() => this.startNewConversation())
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Text('+')
+          .fontSize(24)
+          .fontColor('#5C7CFF')
+          .fontWeight(FontWeight.Medium)
+          .offset({ y: -1 }) // 微调居中
+      }
+      .width(40)
+      .height(40)
+      .backgroundColor('#FFFFFF')
+      .shadow({ radius: 8, color: 'rgba(0,0,0,0.1)', offsetY: 2 })
+      .onClick(() => this.startNewConversation())
     }
     .width('100%')
     .justifyContent(FlexAlign.End)
-    .padding({
-      left: 16,
-      right: 16,
-      top: 16,
-      bottom: 4
-    })
+    .padding({ right: 20, top: 16 })
+    .hitTestBehavior(HitTestMode.Transparent) // 让点击穿透空白区域
   }
 
   @Builder
   private EmptyPlaceholder() {
-    Column({ space: 8 }) {
-      Image($r('app.media.enter'))
-        .width(80)
-        .height(80)
-        .opacity(0.65)
-      Text('暂时没有对话')
-        .fontSize(16)
-        .fontColor('#7A7F8C')
-      Text('试着输入你的症状或问题，点击 Enter 发送给 AI')
-        .fontSize(13)
-        .fontColor('#A0A5B5')
-        .textAlign(TextAlign.Center)
+    Column({ space: 16 }) {
+      // 使用简单的圆形图标替代不存在的ic_public_message
+      Column() {
+        Text('💬')
+          .fontSize(40)
+          .fontColor('#D1D6E6')
+          .opacity(0.8)
+      }
+      .width(80)
+      .height(80)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Column({ space: 6 }) {
+        Text('开启健康咨询')
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#333333')
+        Text('您可以描述症状、询问养生建议\n或解读体检报告')
+          .fontSize(14)
+          .fontColor('#999999')
+          .textAlign(TextAlign.Center)
+          .lineHeight(20)
+      }
     }
     .width('100%')
-    .margin({ top: 40 })
+    .margin({ top: 80 })
     .alignItems(HorizontalAlign.Center)
   }
 
@@ -162,89 +190,122 @@ struct AskAIPage {
   @Builder
   private MessageBubble(msg: ChatMessage) {
     Row() {
+      if (msg.from === 'ai') {
+        // AI 头像 - 改为蓝色背景，白色图标
+        Column() {
+          Text('🤖')
+            .fontSize(20)
+            .fontColor('#FFFFFF')
+        }
+        .width(36)
+        .height(36)
+        .borderRadius(18)
+        .backgroundColor('#5C7CFF') // 蓝色背景
+        .margin({ right: 8, top: 0 })
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .alignSelf(ItemAlign.Start) // 顶部对齐
+      }
+
       Column() {
         Text(msg.text)
-          .fontSize(15)
-          .lineHeight(21)
-          .fontColor(msg.from === 'user' ? '#FFFFFF' : '#191C24')
-          .padding({
-            left: 14,
-            right: 14,
-            top: 10,
-            bottom: 10
-          })
-          .backgroundColor(msg.from === 'user' ? '#5C7CFF' : '#F1F3FA')
+          .fontSize(16)
+          .lineHeight(24)
+          .fontColor(msg.from === 'user' ? '#FFFFFF' : '#333333')
+          .padding(14)
+          .backgroundColor(msg.from === 'user' ? '#5C7CFF' : '#FFFFFF')
           .borderRadius(msg.from === 'user'
             ? {
-              topLeft: 18,
-              topRight: 6,
-              bottomLeft: 18,
-              bottomRight: 18
+              topLeft: 16,
+              topRight: 4,
+              bottomLeft: 16,
+              bottomRight: 16
             }
             : {
-              topLeft: 6,
-              topRight: 18,
-              bottomLeft: 18,
-              bottomRight: 18
+              topLeft: 4,
+              topRight: 16,
+              bottomLeft: 16,
+              bottomRight: 16
             })
-          .width('85%')
-          .shadow({ radius: 6, color: '#1A000000', offsetY: 2 })
+          .shadow(msg.from === 'ai' ? { radius: 8, color: 'rgba(0,0,0,0.05)', offsetY: 2 } : undefined)
+      }
+      .constraintSize({ maxWidth: '70%' }) // 稍微减小气泡最大宽度，留出头像空间
+
+      if (msg.from === 'user') {
+        // 用户头像 - 设置为可见
+        Image($r('app.media.profileIcon')) // 使用现有的个人资料图标
+          .width(36)
+          .height(36)
+          .borderRadius(18)
+          .backgroundColor('#E0E4F5') // 默认底色
+          .margin({ left: 8, top: 0 })
+          .objectFit(ImageFit.Cover)
+          .alignSelf(ItemAlign.Start)
+          .visibility(Visibility.Visible) // ✅ 显示用户头像
       }
     }
     .width('100%')
     .justifyContent(msg.from === 'user' ? FlexAlign.End : FlexAlign.Start)
-    .margin({ top: 4, bottom: 4 })
+    .alignItems(VerticalAlign.Top)
   }
 
   // 底部输入区域
   @Builder
   private InputArea() {
     Column() {
-      Row() {
+      Row({ space: 12 }) {
         TextInput({
           text: this.inputText,
-          placeholder: '请输入要咨询的问题…'
+          placeholder: '请输入您的健康问题...'
         })
           .type(InputType.Normal)
           .placeholderColor('#B0B5C7')
-          .fontColor('#141927')
-          .fontSize(15)
-          .maxLines(3)
-          .height(96)
-          .padding({
-            left: 16,
-            right: 16,
-            top: 14,
-            bottom: 14
-          })
+          .fontColor('#333333')
+          .fontSize(16)
+          .caretColor('#5C7CFF')
+          .maxLines(4)
+          .height(56) // 初始高度
+          .padding({ left: 16, right: 16 })
           .backgroundColor('#FFFFFF')
-          .borderRadius(24)
+          .borderRadius(28)
           .layoutWeight(1)
+          .shadow({ radius: 4, color: 'rgba(0,0,0,0.05)', offsetY: 1 })
           .enterKeyType(EnterKeyType.Send)
           .onSubmit(() => this.onSend())
           .onChange((value: string) => {
             this.inputText = value
           })
 
-        Button($r('app.string.Enter'))
-          .width(52)
-          .height(52)
-          .margin({ left: 12 })
-          .type(ButtonType.Circle)
-          .backgroundColor(this.inputText.trim().length > 0 ? '#5C7CFF' : '#CBD2E6')
-          .fontColor('#FFFFFF')
-          .onClick(() => this.onSend())
+        // 发送按钮 - 优化样式
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          // 使用简洁的箭头符号代替图片
+          Text('↑')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#FFFFFF')
+            .padding({ bottom: 2 }) // 微调位置
+        }
+        .width(48)
+        .height(48)
+        .backgroundColor(this.inputText.trim().length > 0 ? '#5C7CFF' : '#D1D6E6')
+        .shadow({
+          radius: 6,
+          color: this.inputText.trim().length > 0 ? 'rgba(92, 124, 255, 0.4)' : 'transparent',
+          offsetY: 2
+        })
+        .onClick(() => this.onSend())
       }
-      .alignItems(VerticalAlign.Center)
+      .alignItems(VerticalAlign.Bottom) // 底部对齐，适应多行输入
       .padding({
         left: 16,
         right: 16,
         top: 12,
         bottom: 12
       })
-      .backgroundColor('transparent')
     }
-    .padding({ bottom: 82 })
+    .backgroundColor('#F5F7FA') // 与背景同色
+    // 顶部边框线，可选
+    // .border({ width: { top: 1 }, color: '#EEF0F5' }) 
   }
 
   // 点击 Enter 后，把输入内容加入聊天列表
@@ -259,46 +320,69 @@ struct AskAIPage {
     this.inputText = ''
     this.scrollToLatest()
 
-
-    this.simulateAIReply(content)
+    this.fetchSmartReply(content)
   }
 
-  // 使用本地 HealthAIService 模拟 AI 回复（保留“正在输入”效果）
-  private simulateAIReply(question: string) {
+  // 智能回复：优先尝试联网，失败则使用本地规则
+  private async fetchSmartReply(question: string) {
     this.isThinking = true
-    setTimeout(() => {
-      const replyText = HealthAIService.buildAnswer(question)
+
+    try {
+      // 1. 尝试联网获取
+      let replyText = await HealthAIService.fetchOnlineAnswer(question)
+
+      // 2. 如果联网失败（返回 null），则使用离线兜底
+      if (!replyText) {
+        // 模拟一点延迟，让体验更平滑，不至于瞬间失败
+        await new Promise<void>(resolve => setTimeout(resolve, 600))
+        replyText = HealthAIService.buildAnswer(question)
+      }
+
       const aiMsg: ChatMessage = {
         id: this.nextId++,
         from: 'ai',
-        text: replyText
+        text: replyText || '抱歉，我暂时无法回答。'
       }
       this.messages = [...this.messages, aiMsg]
       this.persistMessages()
+    } catch (err) {
+      console.error('SmartReply Error:', JSON.stringify(err))
+      // 异常兜底
+      const replyText = HealthAIService.buildAnswer(question)
+      const aiMsg: ChatMessage = { id: this.nextId++, from: 'ai', text: replyText }
+      this.messages = [...this.messages, aiMsg]
+      this.persistMessages()
+    } finally {
       this.isThinking = false
       this.scrollToLatest()
-    }, 800) // 模拟思考时间
+    }
   }
-
-  
 
   @Builder
   private TypingIndicator() {
     Row() {
-      Text('AI 正在输入…')
-        .fontSize(13)
-        .fontColor('#7A7F8C')
-        .padding({
-          left: 12,
-          right: 12,
-          top: 6,
-          bottom: 6
-        })
-        .backgroundColor('rgba(92,124,255,0.08)')
-        .borderRadius(16)
+      // AI 头像占位
+      Blank().width(36 + 8)
+
+      Row({ space: 4 }) {
+        Circle({ width: 6, height: 6 }).fill('#B0B5C7')
+        Circle({ width: 6, height: 6 }).fill('#B0B5C7').opacity(0.7)
+        Circle({ width: 6, height: 6 }).fill('#B0B5C7').opacity(0.4)
+      }
+      .height(36)
+      .padding({ left: 16, right: 16 })
+      .backgroundColor('#FFFFFF')
+      .borderRadius({
+        topLeft: 4,
+        topRight: 18,
+        bottomLeft: 18,
+        bottomRight: 18
+      })
+      .shadow({ radius: 8, color: 'rgba(0,0,0,0.05)', offsetY: 2 })
     }
     .width('100%')
     .justifyContent(FlexAlign.Start)
+    .margin({ top: 4, bottom: 4 })
   }
 
   private scrollToLatest() {
@@ -306,9 +390,9 @@ struct AskAIPage {
       this.chatScroller.scrollTo({
         xOffset: 0,
         yOffset: 100000,
-        animation: { duration: 180, curve: Curve.EaseOut }
+        animation: { duration: 300, curve: Curve.EaseOut }
       })
-    }, 0)
+    }, 100)
   }
 
   private restoreMessages() {
@@ -334,7 +418,8 @@ struct AskAIPage {
   private persistMessages() {
     const snapshot = JSON.stringify(this.messages)
     this.historySnapshot = snapshot
-    ;(async () => {
+    ;
+    (async () => {
       try {
         const pref = await this.ensurePreferences()
         await pref.put(AskAIPage.HISTORY_KEY, snapshot)

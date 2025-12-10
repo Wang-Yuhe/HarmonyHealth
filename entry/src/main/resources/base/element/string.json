@@ -27,6 +27,14 @@
     {
       "name": "Enter",
       "value": "发送"
+    },
+    {
+      "name": "reason_camera",
+      "value": "我们需要相机权限以拍摄上传病历照片"
+    },
+    {
+      "name": "reason_read_media",
+      "value": "应用需要访问您的媒体文件以选择和上传图片"
     }
   ]
 }
