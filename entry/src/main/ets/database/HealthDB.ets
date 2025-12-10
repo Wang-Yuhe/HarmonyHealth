@@ -13,9 +13,6 @@ export class HealthDB {
   private rdbStore: relationalStore.RdbStore | null = null;
 
   async initDB(context: Context): Promise<void> {
-    if (this.rdbStore) {
-      return;
-    }
     try {
       const config: relationalStore.StoreConfig = {
         name: 'HealthDB.db',
@@ -23,7 +20,6 @@ export class HealthDB {
       };
       this.rdbStore = await relationalStore.getRdbStore(context, config);
       await this.rdbStore.executeSql(CREATE_USER_TABLE);
-      
       /* 默认账号 admin/123456，仅首次 */
       const hasAdmin = await this.getUserByUsername('admin');
       if (!hasAdmin) {
@@ -58,11 +54,10 @@ export class HealthDB {
   }
 
   async getUserByUsername(username: string): Promise<User | null> {
-    let result: relationalStore.ResultSet | null = null;
     try {
       const predicates = new relationalStore.RdbPredicates('users');
       predicates.equalTo('username', username);
-      result = await this.rdbStore!.query(predicates, ['id', 'username', 'password', 'email', 'securityQuestion', 'securityAnswer']);
+      const result = await this.rdbStore!.query(predicates, ['id', 'username', 'password', 'email', 'securityQuestion', 'securityAnswer']);
       if (result.goToFirstRow()) {
         const u = new User(
           result.getString(result.getColumnIndex('username')),
@@ -78,10 +73,6 @@ export class HealthDB {
     } catch (e) {
       console.error('getUserByUsername error:', e);
       return null;
-    } finally {
-      if (result) {
-        result.close();
-      }
     }
   }
 
