@@ -1,0 +1,5 @@
+{
+  "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
+  "apiKey": "sk-slwuijyozqxnrgrvrcckugwgmjfmcmhnhdbmpwohacvkymvb",
+  "model": "deepseek-ai/DeepSeek-V3.2"
+}

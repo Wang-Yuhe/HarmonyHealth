@@ -4,7 +4,8 @@
 struct Index {
   aboutToAppear() {
     try {
-      this.getUIContext().getRouter().replaceUrl({ url: 'pages/LoginPage' });
+      // 暂时跳过登录，直接跳转到主页
+      this.getUIContext().getRouter().replaceUrl({ url: 'pages/HomePage' });
     } catch (err) {
       console.error('Index jump failed:', err);
     }
