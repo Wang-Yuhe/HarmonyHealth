@@ -29,13 +29,34 @@ export interface HealthTip {
   category: string; // e.g., "Sleep", "Posture", "Mental"
 }
 
-export interface ExploreData {
+// Separate interfaces for granular loading
+export interface GreetingData {
   greeting: string;
   dailyQuote: string;
+}
+
+export interface DietData {
   dietPlan: DietRecommendation[];
+}
+
+export interface ExerciseData {
   exercisePlan: ExerciseRecommendation[];
+}
+
+export interface ScheduleData {
   schedule: DailySchedule[];
+}
+
+export interface HealthTipsData {
   healthTips: HealthTip[];
+}
+
+export interface ExploreData {
+  greetingData?: GreetingData;
+  dietData?: DietData;
+  exerciseData?: ExerciseData;
+  scheduleData?: ScheduleData;
+  healthTipsData?: HealthTipsData;
   generatedDate: number; // Timestamp
 }
 

@@ -3,7 +3,7 @@
  * @description Main View for the Explore Feature
  */
 import { ExploreVM } from '../viewmodel/ExploreVM';
-import { ExploreData, DietRecommendation, ExerciseRecommendation, DailySchedule, HealthTip } from '../model/ExploreModels';
+import { GreetingData, DietData, ExerciseData, ScheduleData, HealthTipsData, DietRecommendation, ExerciseRecommendation, DailySchedule, HealthTip } from '../model/ExploreModels';
 
 // --- Constants & Styles ---
 const COLOR_BG = '#F5F7FA'; // Light Grey-Blue
@@ -17,6 +17,38 @@ const COLOR_TEXT_SUB = '#7F8C8D';
 @Component
 export struct ExploreView {
   @State vm: ExploreVM = new ExploreVM();
+
+  @StorageLink('Explore_Greeting') greetingJson: string = '';
+  @StorageLink('Explore_Diet') dietJson: string = '';
+  @StorageLink('Explore_Exercise') exerciseJson: string = '';
+  @StorageLink('Explore_Schedule') scheduleJson: string = '';
+  @StorageLink('Explore_Tips') tipsJson: string = '';
+
+  @StorageProp('Explore_Greeting_Loading') isGreetingLoading: boolean = false;
+  @StorageProp('Explore_Diet_Loading') isDietLoading: boolean = false;
+  @StorageProp('Explore_Exercise_Loading') isExerciseLoading: boolean = false;
+  @StorageProp('Explore_Schedule_Loading') isScheduleLoading: boolean = false;
+  @StorageProp('Explore_Tips_Loading') isTipsLoading: boolean = false;
+
+  getGreetingData(): GreetingData | null {
+    return this.greetingJson ? JSON.parse(this.greetingJson) : null;
+  }
+
+  getDietData(): DietData | null {
+    return this.dietJson ? JSON.parse(this.dietJson) : null;
+  }
+
+  getExerciseData(): ExerciseData | null {
+    return this.exerciseJson ? JSON.parse(this.exerciseJson) : null;
+  }
+
+  getScheduleData(): ScheduleData | null {
+    return this.scheduleJson ? JSON.parse(this.scheduleJson) : null;
+  }
+
+  getTipsData(): HealthTipsData | null {
+    return this.tipsJson ? JSON.parse(this.tipsJson) : null;
+  }
 
   build() {
     Column() {
@@ -37,26 +69,36 @@ export struct ExploreView {
         .height(40)
         .backgroundColor(Color.Transparent)
         .onClick(() => {
-          this.vm.loadData(true);
+          this.vm.refreshAll();
         })
       }
       .width('100%')
       .padding({ left: 20, right: 20, top: 10, bottom: 10 })
       .backgroundColor(COLOR_BG)
 
-      if (this.vm.isLoading) {
-        this.LoadingView()
-      } else if (this.vm.exploreData) {
-        Scroll() {
-          Column({ space: 20 }) {
-            // 1. Greeting & Quote
-            this.GreetingSection(this.vm.exploreData!)
+      Scroll() {
+        Column({ space: 20 }) {
+          // 1. Greeting & Quote
+          if (this.isGreetingLoading) {
+            this.SectionLoading()
+          } else if (this.getGreetingData()) {
+            this.GreetingSection(this.getGreetingData()!)
+          } else {
+            this.SectionError(() => { this.vm.refreshGreeting() })
+          }
 
-            // 2. Diet Plan
-            Text("营养计划")
-              .sectionTitle()
+          // 2. Diet Plan
+          Row() {
+            Text("营养计划").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshDiet() }, this.isDietLoading)
+          }.width('100%').padding({ right: 20 })
+          
+          if (this.isDietLoading) {
+            this.SectionLoading()
+          } else if (this.getDietData()) {
             List({ space: 12 }) {
-              ForEach(this.vm.exploreData!.dietPlan, (item: DietRecommendation) => {
+              ForEach(this.getDietData()!.dietPlan, (item: DietRecommendation) => {
                 ListItem() {
                   this.DietCard(item)
                 }
@@ -68,12 +110,22 @@ export struct ExploreView {
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)
             .padding({ left: 20, right: 20 })
+          } else {
+            this.SectionError(() => { this.vm.refreshDiet() })
+          }
 
-            // 3. Exercise Plan
-            Text("运动建议")
-              .sectionTitle()
+          // 3. Exercise Plan
+          Row() {
+            Text("运动建议").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshExercise() }, this.isExerciseLoading)
+          }.width('100%').padding({ right: 20 })
+
+          if (this.isExerciseLoading) {
+            this.SectionLoading()
+          } else if (this.getExerciseData()) {
             List({ space: 12 }) {
-              ForEach(this.vm.exploreData!.exercisePlan, (item: ExerciseRecommendation) => {
+              ForEach(this.getExerciseData()!.exercisePlan, (item: ExerciseRecommendation) => {
                 ListItem() {
                   this.ExerciseCard(item)
                 }
@@ -85,22 +137,42 @@ export struct ExploreView {
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)
             .padding({ left: 20, right: 20 })
+          } else {
+            this.SectionError(() => { this.vm.refreshExercise() })
+          }
 
-            // 4. Schedule
-            Text("每日流程")
-              .sectionTitle()
+          // 4. Schedule
+          Row() {
+            Text("每日流程").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshSchedule() }, this.isScheduleLoading)
+          }.width('100%').padding({ right: 20 })
+
+          if (this.isScheduleLoading) {
+            this.SectionLoading()
+          } else if (this.getScheduleData()) {
             Column({ space: 10 }) {
-              ForEach(this.vm.exploreData!.schedule, (item: DailySchedule) => {
+              ForEach(this.getScheduleData()!.schedule, (item: DailySchedule) => {
                 this.ScheduleItem(item)
               })
             }
             .padding({ left: 20, right: 20 })
+          } else {
+            this.SectionError(() => { this.vm.refreshSchedule() })
+          }
 
-            // 5. Tips
-            Text("健康小贴士")
-              .sectionTitle()
+          // 5. Tips
+          Row() {
+            Text("健康小贴士").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshTips() }, this.isTipsLoading)
+          }.width('100%').padding({ right: 20 })
+
+          if (this.isTipsLoading) {
+            this.SectionLoading()
+          } else if (this.getTipsData()) {
             Grid() {
-              ForEach(this.vm.exploreData!.healthTips, (item: HealthTip) => {
+              ForEach(this.getTipsData()!.healthTips, (item: HealthTip) => {
                 GridItem() {
                   this.TipCard(item)
                 }
@@ -109,24 +181,18 @@ export struct ExploreView {
             .columnsTemplate('1fr 1fr')
             .rowsGap(12)
             .columnsGap(12)
-            .height(200) // Fixed height for grid or calculate dynamic
+            .height(200)
             .padding({ left: 20, right: 20, bottom: 50 })
-
+          } else {
+            this.SectionError(() => { this.vm.refreshTips() })
           }
-          .width('100%')
+
         }
-        .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
-        .layoutWeight(1)
-      } else {
-        // Error State
-        Column() {
-          Text("出错了，请稍后重试。")
-          Button("重试").onClick(() => this.vm.loadData(true))
-        }
-        .justifyContent(FlexAlign.Center)
-        .height('100%')
+        .width('100%')
       }
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+      .layoutWeight(1)
     }
     .width('100%')
     .height('100%')
@@ -134,23 +200,42 @@ export struct ExploreView {
   }
 
   @Builder
-  LoadingView() {
-    Column() {
-      LoadingProgress()
-        .color(COLOR_PRIMARY)
-        .width(50)
-        .height(50)
-      Text("正在为您生成个性化计划...")
-        .margin({ top: 20 })
-        .fontColor(COLOR_TEXT_SUB)
+  RefreshIcon(action: () => void, isLoading: boolean): void {
+    if (isLoading) {
+      LoadingProgress().width(20).height(20).color(COLOR_PRIMARY)
+    } else {
+      Image($r('app.media.startIcon')) // Replace with refresh icon
+        .width(20)
+        .height(20)
+        .fillColor(COLOR_TEXT_SUB)
+        .onClick(action)
     }
-    .width('100%')
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
   }
 
   @Builder
-  GreetingSection(data: ExploreData) {
+  SectionLoading(): void {
+    Row() {
+      LoadingProgress().width(24).height(24).color(COLOR_PRIMARY).margin({ right: 10 })
+      Text("正在生成...").fontSize(14).fontColor(COLOR_TEXT_SUB)
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+  }
+
+  @Builder
+  SectionError(retry: () => void): void {
+    Row() {
+      Text("加载失败 ").fontSize(14).fontColor(COLOR_TEXT_SUB)
+      Text("重试").fontSize(14).fontColor(COLOR_PRIMARY).onClick(retry)
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+  }
+
+  @Builder
+  GreetingSection(data: GreetingData): void {
     Column() {
       Text(data.greeting)
         .fontSize(20)
@@ -196,7 +281,7 @@ export struct ExploreView {
   }
 
   @Builder
-  DietCard(item: DietRecommendation) {
+  DietCard(item: DietRecommendation): void {
     Column() {
       Row() {
         Text(item.mealType)
@@ -238,7 +323,7 @@ export struct ExploreView {
   }
 
   @Builder
-  ExerciseCard(item: ExerciseRecommendation) {
+  ExerciseCard(item: ExerciseRecommendation): void {
     Column() {
       Row() {
         Text(item.activity)
@@ -277,7 +362,7 @@ export struct ExploreView {
   }
 
   @Builder
-  ScheduleItem(item: DailySchedule) {
+  ScheduleItem(item: DailySchedule): void {
     Row() {
       Column() {
         Text(item.time)
@@ -303,7 +388,7 @@ export struct ExploreView {
   }
 
   @Builder
-  TipCard(item: HealthTip) {
+  TipCard(item: HealthTip): void {
     Column() {
       Text(item.category)
         .fontSize(10)
