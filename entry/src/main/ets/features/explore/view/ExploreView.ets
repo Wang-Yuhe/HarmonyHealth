@@ -1,0 +1,428 @@
+/**
+ * @file ExploreView.ets
+ * @description Main View for the Explore Feature
+ */
+import { ExploreVM } from '../viewmodel/ExploreVM';
+import { GreetingData, DietData, ExerciseData, ScheduleData, HealthTipsData, DietRecommendation, ExerciseRecommendation, DailySchedule, HealthTip } from '../model/ExploreModels';
+
+// --- Constants & Styles ---
+const COLOR_BG = '#F5F7FA'; // Light Grey-Blue
+const COLOR_PRIMARY = '#4A90E2'; // Bright Blue
+const COLOR_ACCENT = '#FF6B6B'; // Soft Red
+const COLOR_SUCCESS = '#2ECC71'; // Green
+const COLOR_CARD_BG = '#FFFFFF';
+const COLOR_TEXT_MAIN = '#2C3E50';
+const COLOR_TEXT_SUB = '#7F8C8D';
+
+@Component
+export struct ExploreView {
+  @State vm: ExploreVM = new ExploreVM();
+
+  @StorageLink('Explore_Greeting') greetingJson: string = '';
+  @StorageLink('Explore_Diet') dietJson: string = '';
+  @StorageLink('Explore_Exercise') exerciseJson: string = '';
+  @StorageLink('Explore_Schedule') scheduleJson: string = '';
+  @StorageLink('Explore_Tips') tipsJson: string = '';
+
+  @StorageProp('Explore_Greeting_Loading') isGreetingLoading: boolean = false;
+  @StorageProp('Explore_Diet_Loading') isDietLoading: boolean = false;
+  @StorageProp('Explore_Exercise_Loading') isExerciseLoading: boolean = false;
+  @StorageProp('Explore_Schedule_Loading') isScheduleLoading: boolean = false;
+  @StorageProp('Explore_Tips_Loading') isTipsLoading: boolean = false;
+
+  getGreetingData(): GreetingData | null {
+    return this.greetingJson ? JSON.parse(this.greetingJson) : null;
+  }
+
+  getDietData(): DietData | null {
+    return this.dietJson ? JSON.parse(this.dietJson) : null;
+  }
+
+  getExerciseData(): ExerciseData | null {
+    return this.exerciseJson ? JSON.parse(this.exerciseJson) : null;
+  }
+
+  getScheduleData(): ScheduleData | null {
+    return this.scheduleJson ? JSON.parse(this.scheduleJson) : null;
+  }
+
+  getTipsData(): HealthTipsData | null {
+    return this.tipsJson ? JSON.parse(this.tipsJson) : null;
+  }
+
+  build() {
+    Column() {
+      // Header / Title Bar
+      Row() {
+        Text("发现")
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(COLOR_TEXT_MAIN)
+        Blank()
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image($r('app.media.startIcon')) // Placeholder for refresh icon
+            .width(24)
+            .height(24)
+            .fillColor(COLOR_PRIMARY)
+        }
+        .width(40)
+        .height(40)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          this.vm.refreshAll();
+        })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 10, bottom: 10 })
+      .backgroundColor(COLOR_BG)
+
+      Scroll() {
+        Column({ space: 20 }) {
+          // 1. Greeting & Quote
+          if (this.isGreetingLoading) {
+            this.SectionLoading()
+          } else if (this.getGreetingData()) {
+            this.GreetingSection(this.getGreetingData()!)
+          } else {
+            this.SectionError(() => { this.vm.refreshGreeting() })
+          }
+
+          // 2. Diet Plan
+          Row() {
+            Text("营养计划").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshDiet() }, this.isDietLoading)
+          }.width('100%').padding({ right: 20 })
+          
+          if (this.isDietLoading) {
+            this.SectionLoading()
+          } else if (this.getDietData()) {
+            List({ space: 12 }) {
+              ForEach(this.getDietData()!.dietPlan, (item: DietRecommendation) => {
+                ListItem() {
+                  this.DietCard(item)
+                }
+              })
+            }
+            .listDirection(Axis.Horizontal)
+            .width('100%')
+            .height(160)
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring)
+            .padding({ left: 20, right: 20 })
+          } else {
+            this.SectionError(() => { this.vm.refreshDiet() })
+          }
+
+          // 3. Exercise Plan
+          Row() {
+            Text("运动建议").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshExercise() }, this.isExerciseLoading)
+          }.width('100%').padding({ right: 20 })
+
+          if (this.isExerciseLoading) {
+            this.SectionLoading()
+          } else if (this.getExerciseData()) {
+            List({ space: 12 }) {
+              ForEach(this.getExerciseData()!.exercisePlan, (item: ExerciseRecommendation) => {
+                ListItem() {
+                  this.ExerciseCard(item)
+                }
+              })
+            }
+            .listDirection(Axis.Horizontal)
+            .width('100%')
+            .height(140)
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring)
+            .padding({ left: 20, right: 20 })
+          } else {
+            this.SectionError(() => { this.vm.refreshExercise() })
+          }
+
+          // 4. Schedule
+          Row() {
+            Text("每日流程").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshSchedule() }, this.isScheduleLoading)
+          }.width('100%').padding({ right: 20 })
+
+          if (this.isScheduleLoading) {
+            this.SectionLoading()
+          } else if (this.getScheduleData()) {
+            Column({ space: 10 }) {
+              ForEach(this.getScheduleData()!.schedule, (item: DailySchedule) => {
+                this.ScheduleItem(item)
+              })
+            }
+            .padding({ left: 20, right: 20 })
+          } else {
+            this.SectionError(() => { this.vm.refreshSchedule() })
+          }
+
+          // 5. Tips
+          Row() {
+            Text("健康小贴士").sectionTitle()
+            Blank()
+            this.RefreshIcon(() => { this.vm.refreshTips() }, this.isTipsLoading)
+          }.width('100%').padding({ right: 20 })
+
+          if (this.isTipsLoading) {
+            this.SectionLoading()
+          } else if (this.getTipsData()) {
+            Grid() {
+              ForEach(this.getTipsData()!.healthTips, (item: HealthTip) => {
+                GridItem() {
+                  this.TipCard(item)
+                }
+              })
+            }
+            .columnsTemplate('1fr 1fr')
+            .rowsGap(12)
+            .columnsGap(12)
+            .height(200)
+            .padding({ left: 20, right: 20, bottom: 50 })
+          } else {
+            this.SectionError(() => { this.vm.refreshTips() })
+          }
+
+        }
+        .width('100%')
+      }
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(COLOR_BG)
+  }
+
+  @Builder
+  RefreshIcon(action: () => void, isLoading: boolean): void {
+    if (isLoading) {
+      LoadingProgress().width(20).height(20).color(COLOR_PRIMARY)
+    } else {
+      Image($r('app.media.startIcon')) // Replace with refresh icon
+        .width(20)
+        .height(20)
+        .fillColor(COLOR_TEXT_SUB)
+        .onClick(action)
+    }
+  }
+
+  @Builder
+  SectionLoading(): void {
+    Row() {
+      LoadingProgress().width(24).height(24).color(COLOR_PRIMARY).margin({ right: 10 })
+      Text("正在生成...").fontSize(14).fontColor(COLOR_TEXT_SUB)
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+  }
+
+  @Builder
+  SectionError(retry: () => void): void {
+    Row() {
+      Text("加载失败 ").fontSize(14).fontColor(COLOR_TEXT_SUB)
+      Text("重试").fontSize(14).fontColor(COLOR_PRIMARY).onClick(retry)
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+  }
+
+  @Builder
+  GreetingSection(data: GreetingData): void {
+    Column() {
+      Text(data.greeting)
+        .fontSize(20)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(COLOR_TEXT_MAIN)
+        .width('100%')
+      
+      Stack() {
+        Image($r('app.media.startIcon')) // Background pattern or gradient
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+          .opacity(0.1)
+          .borderRadius(16)
+        
+        Column() {
+          Text("每日灵感")
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor(COLOR_ACCENT)
+            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+            .borderRadius(8)
+            .margin({ bottom: 8 })
+          
+          Text(`"${data.dailyQuote}"`)
+            .fontSize(16)
+            .fontStyle(FontStyle.Italic)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(COLOR_TEXT_MAIN)
+            .textAlign(TextAlign.Center)
+        }
+        .padding(20)
+        .width('100%')
+      }
+      .margin({ top: 15 })
+      .width('100%')
+      .height(120)
+      .backgroundColor(Color.White)
+      .borderRadius(16)
+      .shadow({ radius: 10, color: '#10000000', offsetY: 5 })
+    }
+    .padding({ left: 20, right: 20 })
+  }
+
+  @Builder
+  DietCard(item: DietRecommendation): void {
+    Column() {
+      Row() {
+        Text(item.mealType)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(COLOR_PRIMARY)
+        Blank()
+        Text(`${item.calories} kcal`)
+          .fontSize(12)
+          .fontColor(COLOR_TEXT_SUB)
+      }
+      .width('100%')
+      
+      Text(item.suggestion)
+        .fontSize(14)
+        .fontColor(COLOR_TEXT_MAIN)
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .margin({ top: 8, bottom: 8 })
+        .layoutWeight(1)
+
+      Row({ space: 5 }) {
+        ForEach(item.tags, (tag: string) => {
+          Text(tag)
+            .fontSize(10)
+            .fontColor(COLOR_SUCCESS)
+            .backgroundColor('#E8F8F5')
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .borderRadius(4)
+        })
+      }
+    }
+    .width(200)
+    .height('100%')
+    .padding(15)
+    .backgroundColor(COLOR_CARD_BG)
+    .borderRadius(16)
+    .shadow({ radius: 5, color: '#05000000', offsetY: 2 })
+  }
+
+  @Builder
+  ExerciseCard(item: ExerciseRecommendation): void {
+    Column() {
+      Row() {
+        Text(item.activity)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(COLOR_TEXT_MAIN)
+      }
+      .width('100%')
+      
+      Row() {
+        Text(item.duration)
+          .fontSize(12)
+          .fontColor(COLOR_TEXT_SUB)
+        Blank()
+        Text(item.intensity)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(item.intensity === 'High' ? COLOR_ACCENT : COLOR_SUCCESS)
+      }
+      .width('100%')
+      .margin({ top: 5 })
+
+      Text(item.benefits)
+        .fontSize(12)
+        .fontColor(COLOR_TEXT_SUB)
+        .margin({ top: 10 })
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width(160)
+    .height('100%')
+    .padding(15)
+    .backgroundColor(COLOR_CARD_BG)
+    .borderRadius(16)
+    .shadow({ radius: 5, color: '#05000000', offsetY: 2 })
+  }
+
+  @Builder
+  ScheduleItem(item: DailySchedule): void {
+    Row() {
+      Column() {
+        Text(item.time)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(COLOR_PRIMARY)
+      }
+      .width(50)
+      .alignItems(HorizontalAlign.Start)
+
+      Column()
+        .width(2)
+        .height(30)
+        .backgroundColor('#E0E0E0')
+        .margin({ left: 5, right: 15 })
+
+      Text(item.activity)
+        .fontSize(15)
+        .fontColor(COLOR_TEXT_MAIN)
+    }
+    .width('100%')
+    .padding({ top: 5, bottom: 5 })
+  }
+
+  @Builder
+  TipCard(item: HealthTip): void {
+    Column() {
+      Text(item.category)
+        .fontSize(10)
+        .fontColor(COLOR_ACCENT)
+        .fontWeight(FontWeight.Bold)
+        .margin({ bottom: 5 })
+      
+      Text(item.title)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(COLOR_TEXT_MAIN)
+        .margin({ bottom: 5 })
+      
+      Text(item.content)
+        .fontSize(12)
+        .fontColor(COLOR_TEXT_SUB)
+        .maxLines(3)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .height(120)
+    .padding(12)
+    .backgroundColor(COLOR_CARD_BG)
+    .borderRadius(12)
+    .alignItems(HorizontalAlign.Start)
+    .shadow({ radius: 5, color: '#05000000', offsetY: 2 })
+  }
+}
+
+// --- Styles Extension ---
+@Extend(Text) function sectionTitle() {
+  .fontSize(18)
+  .fontWeight(FontWeight.Bold)
+  .fontColor(COLOR_TEXT_MAIN)
+  .width('100%')
+  .padding({ left: 20, top: 20, bottom: 10 })
+}
