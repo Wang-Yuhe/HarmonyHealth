@@ -79,6 +79,26 @@
           "abilities": ["EntryAbility"],
           "when": "always"
         }
+      },
+      {
+        "name": "ohos.permission.READ_MEDIA",
+        "reason": "$string:reason_read_media",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.CAMERA",
+        "reason": "$string:reason_camera",  // 引用刚才定义的字符串
+        "usedScene": {
+          "abilities": [
+            "EntryAbility" // 这里填写你的主 UIAbility 名称，通常默认是 EntryAbility
+          ],
+          "when": "inuse" // 表示仅在应用使用期间需要权限
+        }
       }
     ],
     // 新增自定义权限声明（可选）
