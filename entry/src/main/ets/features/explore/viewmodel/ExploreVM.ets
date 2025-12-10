@@ -3,29 +3,41 @@
  * @description ViewModel for Explore Page
  */
 import { ExploreAIService } from '../service/ExploreAIService';
-import { ExploreData } from '../model/ExploreModels';
+import { GreetingData, DietData, ExerciseData, ScheduleData, HealthTipsData } from '../model/ExploreModels';
 
 @Observed
 export class ExploreVM {
-  public exploreData: ExploreData | null = null;
-  public isLoading: boolean = false;
-  public isError: boolean = false;
-
   constructor() {
-    this.loadData();
+    // Data is prefetched in EntryAbility, but we can trigger again if needed
+    // or just rely on AppStorage updates.
   }
 
-  public async loadData(forceRefresh: boolean = false) {
-    this.isLoading = true;
-    this.isError = false;
-    try {
-      const service = ExploreAIService.getInstance();
-      this.exploreData = await service.getExploreData(forceRefresh);
-    } catch (e) {
-      console.error("ExploreVM: Failed to load data", e);
-      this.isError = true;
-    } finally {
-      this.isLoading = false;
-    }
+  // Refresh methods
+  public async refreshGreeting() {
+    await ExploreAIService.getInstance().fetchGreeting(true);
+  }
+
+  public async refreshDiet() {
+    await ExploreAIService.getInstance().fetchDiet(true);
+  }
+
+  public async refreshExercise() {
+    await ExploreAIService.getInstance().fetchExercise(true);
+  }
+
+  public async refreshSchedule() {
+    await ExploreAIService.getInstance().fetchSchedule(true);
+  }
+
+  public async refreshTips() {
+    await ExploreAIService.getInstance().fetchTips(true);
+  }
+
+  public refreshAll() {
+    this.refreshGreeting();
+    this.refreshDiet();
+    this.refreshExercise();
+    this.refreshSchedule();
+    this.refreshTips();
   }
 }
