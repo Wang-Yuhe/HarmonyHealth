@@ -208,7 +208,17 @@ struct AskAIPage {
       }
 
       Column() {
-        Text(msg.text)
+        // 修改开始：使用 Text + Span 解析 Markdown 加粗语法 (**text**)
+        Text() {
+          ForEach(msg.text.split(/(\*\*.*?\*\*)/g), (part: string) => {
+            if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+              Span(part.substring(2, part.length - 2))
+                .fontWeight(FontWeight.Bold)
+            } else {
+              Span(part)
+            }
+          })
+        }
           .fontSize(16)
           .lineHeight(24)
           .fontColor(msg.from === 'user' ? '#FFFFFF' : '#333333')
@@ -228,6 +238,7 @@ struct AskAIPage {
               bottomRight: 16
             })
           .shadow(msg.from === 'ai' ? { radius: 8, color: 'rgba(0,0,0,0.05)', offsetY: 2 } : undefined)
+        // 修改结束
       }
       .constraintSize({ maxWidth: '70%' }) // 稍微减小气泡最大宽度，留出头像空间
 
@@ -333,8 +344,9 @@ struct AskAIPage {
 
       // 2. 如果联网失败（返回 null），则使用离线兜底
       if (!replyText) {
-        // 模拟一点延迟，让体验更平滑，不至于瞬间失败
+        // 修改开始：将模拟延迟从 600ms 
         await new Promise<void>(resolve => setTimeout(resolve, 600))
+        // 修改结束
         replyText = HealthAIService.buildAnswer(question)
       }
 

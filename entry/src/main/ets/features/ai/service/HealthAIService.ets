@@ -65,8 +65,10 @@ export class HealthAIService {
           temperature: 0.7
         } as ChatRequestData),
         expectDataType: http.HttpDataType.STRING,
-        readTimeout: 20000, // 设置 20 秒超时
-        connectTimeout: 20000
+        // 修改开始：将超时时间为 15秒，加快失败后的响应速度
+        readTimeout: 15000, 
+        connectTimeout: 15000
+        // 修改结束
       });
       // 3. 解析响应
       if (response.responseCode === 200) {
