@@ -42,7 +42,7 @@ export struct myNavigator {
       this.buildNavItem($r('app.media.profileIcon'), '咨询', 2, 'pages/AskAIPage')
     }
     .width('100%')
-    .height(70)
+    .height(40)
     .backgroundColor('#FFFFFF')
     .padding({
       left: 16,
