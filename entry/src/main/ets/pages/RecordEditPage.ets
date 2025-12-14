@@ -1,7 +1,7 @@
 import router from '@ohos.router';
 import { MedicalRecordForm } from '../common/components/MedicalRecordForm';
 import { MedicalRecord } from '../common/model/MedicalRecordModel';
-
+import promptAction from '@ohos.promptAction';
 
 interface PageParams {
   record: MedicalRecord;
@@ -64,7 +64,43 @@ struct RecordDetailPage {
       console.error('未找到该病历');
     }
   }
+  // 删除病历的逻辑
+  deleteRecord() {
+    // 1. 弹出确认框，防止手滑误删
+    promptAction.showDialog({
+      title: '删除确认',
+      message: '确定要永久删除这条病历记录吗？此操作无法撤销。',
+      buttons: [
+        { text: '取消', color: '#666666' },
+        { text: '确认删除', color: '#FF0000' } // 红色警示
+      ]
+    }).then((resp) => {
+      // resp.index === 1 表示点击了第二个按钮（确认删除）
+      if (resp.index === 1) {
+        this.performDelete();
+      }
+    });
+  }
+  // 执行真正的删除操作
+  performDelete() {
+    const index = this.records.findIndex(item => item.id === this.recordId);
 
+    if (index !== -1) {
+      // 2. 从数组中移除该元素
+      this.records.splice(index, 1);
+
+      // 3. 强制刷新数组引用
+      // 这一步能保证返回列表页时，列表会自动刷新
+      this.records = [...this.records];
+
+      promptAction.showToast({ message: '已删除' });
+
+      // 4. 返回列表页
+      router.back();
+    } else {
+      promptAction.showToast({ message: '删除失败：未找到记录' });
+    }
+  }
   build() {
     Column() {
       // 标题栏
@@ -74,18 +110,34 @@ struct RecordDetailPage {
         Blank()
         Button('更新').onClick(() => this.updateRecord())
       }.padding(16).width('100%').backgroundColor(Color.White)
+      // --- 中间表单区域 (使用 Column 包裹，确保按钮在底部) ---
+      Column() {
+        // 复用表单组件 (注意设置 layoutWeight 让它占据中间剩余空间)
+        MedicalRecordForm({
+          title: $title,
+          content: $content,
+          selectedImage: $selectedImage,
+          pdfUri: $pdfUri,
+          hospital: $hospital,
+          selectedDate: $selectedDate,
+          tags: $tags
+        })
+          .layoutWeight(1) // 占满剩余空间
 
-      // 复用同一个表单组件
-      MedicalRecordForm({
-        title: $title,
-        content: $content,
-        selectedImage: $selectedImage,
-        pdfUri: $pdfUri,
-        hospital: $hospital,
-        selectedDate: $selectedDate,
-        tags: $tags
-      }).layoutWeight(1)
+        // --- 底部删除按钮 ---
+        Button('删除此病历')
+          .width('90%')
+          .height(45)
+          .fontSize(16)
+          .fontColor(Color.White)
+          .backgroundColor('#FF4D4F') // 红色背景
+          .margin({ top: 10, bottom: 20 }) // 上下留白
+          .onClick(() => this.deleteRecord()) // 绑定删除事件
+      }
+      .layoutWeight(1) // 让整个内容区撑开
+      .width('100%')
     }
-    .height('100%').backgroundColor('#F1F3F5')
+    .height('100%')
+    .backgroundColor('#F1F3F5')
+    }
   }
-}

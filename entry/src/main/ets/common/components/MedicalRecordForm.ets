@@ -1,6 +1,7 @@
 import picker from '@ohos.file.picker';
 import promptAction from '@ohos.promptAction';
 import { OCRUtils } from '../utils/OCRUtils';
+import { ParsedInfo, RecordParser } from './RecordParser';
 
 @Component
 export struct MedicalRecordForm {
@@ -76,7 +77,21 @@ export struct MedicalRecordForm {
       }
 
       this.content = text;
-      promptAction.showToast({ message: '识别成功' });
+      const info: ParsedInfo = RecordParser.parse(text);
+      // 只有当输入框是空的时候才自动填，防止覆盖用户已经手写的
+      if (info.hospital && !this.hospital) {
+        this.hospital = info.hospital;
+      }
+
+      if (info.title && !this.title) {
+        this.title = info.title;
+      }
+
+      if (info.date) {
+        this.selectedDate = info.date;
+      }
+
+      promptAction.showToast({ message: '识别成功并已自动填写！' });
     } catch(e) {
       promptAction.showToast({ message: '识别失败' });
     } finally {

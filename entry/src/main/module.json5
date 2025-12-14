@@ -99,6 +99,14 @@
           ],
           "when": "inuse" // 表示仅在应用使用期间需要权限
         }
+      },
+      {
+        "name": "ohos.permission.READ_IMAGEVIDEO",
+        "reason": "$string:reason_read_media",  // 展示给用户的授权理由
+        "usedScene": {
+          "abilities": ["EntryAbility"],     // 使用该权限的Ability
+          "when": "always"                   // 使用时机
+        }
       }
     ],
     // 新增自定义权限声明（可选）
