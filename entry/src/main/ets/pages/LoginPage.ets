@@ -1,6 +1,6 @@
 /**
  * @file LoginPage.ets
- * @description 登录界面（支持输入账号自动切换头像）
+ * @description 登录界面（UI 优化版 - 蓝色主题）
  */
 import { PromptAction, Router } from '@kit.ArkUI';
 import { Context } from '@kit.AbilityKit';
@@ -13,7 +13,6 @@ struct LoginPage {
   @State username: string = '';
   @State password: string = '';
   @State currentAvatar: Resource | string = $r('app.media.profileIcon'); // 支持 Resource 或 URI
-
   /* ---------------- 实例变量 ---------------- */
   private loginVM: LoginVM = new LoginVM();
   private router: Router | null = null;
@@ -31,96 +30,147 @@ struct LoginPage {
 
   /* ---------------- UI ---------------- */
   build() {
-    Column() {
-      Text('Harmony\n  Health')
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold)
-        .shaderStyle({
-          direction: GradientDirection.LeftTop,
-          colors: [['#EC13FC', 0.0], ['#13D8FC', 1]]
+    Stack() {
+      // 1. 背景层：改为与 AskAIPage 呼应的蓝色系渐变
+      Column()
+        .width('100%')
+        .height('100%')
+        .linearGradient({
+          angle: 180,
+          colors: [['#E0E8FF', 0.0], ['#F5F7FA', 1.0]] // 浅蓝到浅灰，清新通透
         })
-        .width('30%')
-        .height(50)
-        .margin({ top: 60, bottom: 60 })
 
-      /* ========== 头像区域 ========== */
-      Image(this.currentAvatar) // 👈 直接绑定
-        .width(80)
-        .height(80)
-        .borderRadius('50%')
-        .margin({ bottom: 60 })
-        .objectFit(ImageFit.Cover)
+      // 装饰性大圆 - 蓝色系
+      Circle({ width: 200, height: 200 })
+        .fill('#5C7CFF')
+        .opacity(0.08)
+        .position({ x: -50, y: -50 })
+        .blur(40)
 
-      /* 用户名 */
-      TextInput({ placeholder: '请输入用户名' })
-        .placeholderColor('#999999')
-        .fontColor('#333333')
-        .height(50)
-        .width('90%')
-        .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .padding(10)
-        .margin({ bottom: 20 })
-        .onChange(v => {
-          this.username = v;
-          // 防抖更新头像
-          if (this.debounceTimer !== -1) {
-            clearTimeout(this.debounceTimer);
+      Circle({ width: 150, height: 150 })
+        .fill('#4A65E0')
+        .opacity(0.08)
+        .position({ x: '85%', y: '15%' })
+        .blur(40)
+
+      // 2. 内容层
+      Column() {
+        // 标题区域
+        Column({ space: 8 }) {
+          Text('Harmony Health')
+            .fontSize(32)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#333333') // 深灰标题，更显沉稳
+            .textAlign(TextAlign.Center)
+
+          Text('您的智能健康管家')
+            .fontSize(14)
+            .fontColor('#666666')
+            .letterSpacing(2)
+        }
+        .margin({ top: 100, bottom: 50 })
+
+        // 登录卡片
+        Column() {
+          /* ========== 头像区域 ========== */
+          Image(this.currentAvatar)
+            .width(84)
+            .height(84)
+            .borderRadius(42)
+            .margin({ top: -42, bottom: 24 }) // 向上负边距，实现悬浮效果
+            .objectFit(ImageFit.Cover)
+            .border({ width: 4, color: '#FFFFFF' }) // 白色边框
+            .shadow({ radius: 12, color: 'rgba(92, 124, 255, 0.2)', offsetY: 6 }) // 蓝色系阴影
+
+          /* 输入区域 */
+          Column({ space: 16 }) {
+            // 用户名输入框
+            this.InputGroup('请输入用户名', false, (val) => {
+              this.username = val;
+              if (this.debounceTimer !== -1) {
+                clearTimeout(this.debounceTimer);
+              }
+              this.debounceTimer = setTimeout(() => {
+                this.updateAvatarByUser();
+              }, 300);
+            })
+            // 密码输入框
+            this.InputGroup('请输入密码', true,
+              (val) => this.password = val)
           }
-          this.debounceTimer = setTimeout(() => {
-            this.updateAvatarByUser();
-          }, 300);
-        })
+          .padding({ left: 32, right: 32, bottom: 32 })
+          .width('100%')
 
-      /* 密码 */
-      TextInput({ placeholder: '请输入密码' })
-        .type(InputType.Password)
-        .placeholderColor('#999999')
-        .fontColor('#333333')
-        .height(50)
-        .width('90%')
+          /* 登录按钮 */
+          Button('登 录')
+            .width('80%')
+            .height(48)
+            .backgroundColor('#5C7CFF') // 统一的主蓝色
+            .fontColor('#FFFFFF')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .borderRadius(24)
+            .shadow({ radius: 10, color: 'rgba(92, 124, 255, 0.4)', offsetY: 4 })
+            .onClick(() => this.handleLogin())
+            .margin({ bottom: 24 })
+
+          /* 文字链区域 */
+          Row() {
+            Text('注册账号')
+              .fontSize(14)
+              .fontColor('#5C7CFF') // 蓝色链接
+              .onClick(() => this.gotoRegister())
+              .padding(8)
+
+            Text('|')
+              .fontSize(14)
+              .fontColor('#E0E0E0')
+              .margin({ left: 4, right: 4 })
+
+            Text('忘记密码')
+              .fontSize(14)
+              .fontColor('#999999')
+              .onClick(() => this.gotoResetPwd())
+              .padding(8)
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
+          .margin({ bottom: 24 })
+
+        }
+        .width('85%')
         .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-        .padding(10)
-        .margin({ bottom: 30 })
-        .onChange(v => this.password = v)
+        .borderRadius(24)
+        .shadow({ radius: 40, color: 'rgba(0,0,0,0.06)', offsetY: 10 }) // 更柔和的大范围阴影
+        .alignItems(HorizontalAlign.Center)
 
-      /* 登录按钮 */
-      Button('登录')
-        .width('90%')
-        .height(50)
-        .backgroundColor('#409EFF')
-        .fontColor('#FFFFFF')
-        .fontSize(20)
-        .borderRadius(8)
-        .onClick(() => this.handleLogin())
-
-      /* 文字链区域 */
-      Row() {
-        Text('注册账号')
-          .fontSize(14)
-          .fontColor('#409EFF')
-          .onClick(() => this.gotoRegister())
-          .margin({ left: 4 })
-
-        Text(' | ')
-          .fontSize(14)
-          .fontColor('#666666')
-          .margin({ left: 4, right: 4 })
-
-        Text('忘记密码')
-          .fontSize(14)
-          .fontColor('#409EFF')
-          .onClick(() => this.gotoResetPwd())
       }
       .width('100%')
-      .justifyContent(FlexAlign.Center)
-      .margin({ top: 24 })
+      .height('100%')
     }
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Start)
-    .backgroundColor('#F5F6FA')
+  }
+
+  // 封装输入框组件 - 极简风格
+  @Builder
+  InputGroup(placeholder: string, isPassword: boolean, onChange: (val: string) => void) {
+    Row() {
+      TextInput({ placeholder: placeholder })
+        .type(isPassword ? InputType.Password : InputType.Normal)
+        .placeholderColor('#C0C4CC')
+        .fontColor('#333333')
+        .fontSize(16)
+        .caretColor('#5C7CFF') // 蓝色光标
+        .backgroundColor(Color.Transparent) // 透明背景
+        .layoutWeight(1)
+        .height(48)
+        .onChange(onChange)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
+    .backgroundColor('#F5F7FA') // 极浅灰底色，比纯白更有质感
+    .borderRadius(24) // 全圆角，更现代
   }
 
   /**
