@@ -7,6 +7,15 @@
 import { HealthData } from '../../../common/model/HealthData';
 
 export class DeviceService {
+  private static instance: DeviceService;
+
+  public static getInstance(): DeviceService {
+    if (!DeviceService.instance) {
+      DeviceService.instance = new DeviceService();
+    }
+    return DeviceService.instance;
+  }
+
   // 模拟当前步数累加
   private currentSteps: number = 1000;
   private currentCalories: number = 50;

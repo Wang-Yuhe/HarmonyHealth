@@ -28,3 +28,14 @@ export const CREATE_HEALTH_TABLE = `
     bloodOxygen INTEGER
   );
 `;
+
+export const CREATE_SLEEP_TABLE = `
+  CREATE TABLE IF NOT EXISTS sleep_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL UNIQUE,
+    totalMinutes INTEGER,
+    deepSleepMinutes INTEGER,
+    lightSleepMinutes INTEGER,
+    awakeMinutes INTEGER
+  );
+`;

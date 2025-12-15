@@ -9,7 +9,7 @@ import { DeviceService } from '../../device/service/DeviceService';
 import { HealthDB } from '../../../database/HealthDB';
 
 export class HealthVM {
-  private deviceService: DeviceService = new DeviceService();
+  private deviceService: DeviceService = DeviceService.getInstance();
   private timerId: number = -1;
 
   /**

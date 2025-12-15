@@ -6,6 +6,8 @@
 import { myNavigator } from '../common/components/Navigator';
 import { HealthVM } from '../features/healthStatus/viewmodel/HealthVM';
 import { HealthData } from '../common/model/HealthData';
+import { SleepData } from '../common/model/SleepData';
+import { HealthDB } from '../database/HealthDB';
 
 @Component
 struct HealthItemComponent {
@@ -51,10 +53,11 @@ struct HealthItemComponent {
 @Component
 struct HomePage {
   @State currentData: HealthData = new HealthData(0, 0, 0, 0);
+  @State todaySleep: SleepData | null = null;
   private healthVM: HealthVM = new HealthVM();
 
   private STEP_GOAL: number = 5000;
-  private SLEEP_GOAL: number = 9; // 单位：小时
+  private SLEEP_GOAL: number = 8; // 单位：小时
 
   //------------------------------
   // 颜色辅助函数（线性插值）
@@ -100,10 +103,26 @@ struct HomePage {
       this.currentData = lastData;
       console.info(`HealthApp data刷新: 心率=${lastData.heartRate}, 时间=${lastData.timestamp}`);
     }
+    await this.loadSleepData();
+  }
 
-    this.healthVM.startMonitoring(3000000, (data) => {
+  async loadSleepData() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    this.todaySleep = await HealthDB.getInstance().getSleepDataByDate(todayStr);
+  }
+
+  onPageShow() {
+    // 页面显示时（包括从子页面返回），开启监测
+    this.healthVM.startMonitoring(3000, (data) => {
       this.currentData = data;
     });
+    // 刷新睡眠数据（防止在详情页修改后返回不更新）
+    this.loadSleepData();
+  }
+
+  onPageHide() {
+    // 页面隐藏时（跳转到子页面或后台），停止监测以节省资源
+    this.healthVM.stopMonitoring();
   }
 
   aboutToDisappear() {
@@ -149,11 +168,11 @@ struct HomePage {
             })
               .layoutWeight(1)
 
-            // 睡眠颜色根据时长变化（默认固定值，你之后可改成真实数据）
+            // 睡眠颜色根据时长变化
             HealthItemComponent({
               title: '睡眠质量',
-              value: `8h 30m`,
-              bgColor: this.getSleepColor(8.5),
+              value: this.todaySleep ? `${(this.todaySleep.totalMinutes / 60).toFixed(1)}h` : '无数据',
+              bgColor: this.getSleepColor(this.todaySleep ? this.todaySleep.totalMinutes / 60 : 0),
               pageName: 'pages/HomeTo/SleepPage',
               icon: $r('app.media.sleep')
             })
@@ -197,3 +216,4 @@ struct HomePage {
     .backgroundColor('#F5F5F5')
   }
 }
+

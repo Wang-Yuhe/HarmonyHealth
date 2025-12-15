@@ -8,7 +8,8 @@ import relationalStore from '@ohos.data.relationalStore';
 import { Context } from '@kit.AbilityKit';
 import { User } from '../common/model/User';
 import { HealthData } from '../common/model/HealthData';
-import { CREATE_USER_TABLE, CREATE_HEALTH_TABLE } from './Migrations/InitMigration';
+import { SleepData } from '../common/model/SleepData';
+import { CREATE_USER_TABLE, CREATE_HEALTH_TABLE, CREATE_SLEEP_TABLE } from './Migrations/InitMigration';
 
 export class HealthDB {
   private static instance: HealthDB;
@@ -30,11 +31,109 @@ export class HealthDB {
       this.rdbStore = await relationalStore.getRdbStore(context, config);
       await this.rdbStore.executeSql(CREATE_USER_TABLE);
       await this.rdbStore.executeSql(CREATE_HEALTH_TABLE);
+      await this.rdbStore.executeSql(CREATE_SLEEP_TABLE);
       
-
+      // 初始化一些模拟睡眠数据（如果为空）
+      await this.initMockSleepData();
 
     } catch (e) {
       console.error('initDB error:', e);
+    }
+  }
+
+  // ==========================================
+  // Sleep Data Operations
+  // ==========================================
+
+  private async initMockSleepData() {
+    try {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // 检查今天是否有数据
+      const hasData = await this.getSleepDataByDate(todayStr);
+      if (!hasData) {
+        // 生成过去7天的数据
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(today.getDate() - i);
+          const dateStr = d.toISOString().split('T')[0];
+          
+          // 随机生成睡眠数据 (6-9小时)
+          const totalHours = 6 + Math.random() * 3;
+          const totalMinutes = Math.floor(totalHours * 60);
+          const deep = Math.floor(totalMinutes * (0.2 + Math.random() * 0.1)); // 20-30% 深睡
+          const awake = Math.floor(Math.random() * 30); // 0-30分清醒
+          const light = totalMinutes - deep - awake;
+
+          const sleepData = new SleepData(dateStr, totalMinutes, deep, light, awake);
+          await this.insertSleepData(sleepData);
+        }
+      }
+    } catch (e) {
+      console.error('initMockSleepData error:', e);
+    }
+  }
+
+  async insertSleepData(data: SleepData): Promise<number> {
+    try {
+      const value: relationalStore.ValuesBucket = {
+        date: data.date,
+        totalMinutes: data.totalMinutes,
+        deepSleepMinutes: data.deepSleepMinutes,
+        lightSleepMinutes: data.lightSleepMinutes,
+        awakeMinutes: data.awakeMinutes
+      };
+      // 使用 REPLACE 策略，如果同一天已有数据则覆盖
+      return await this.rdbStore!.insert('sleep_data', value, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+    } catch (e) {
+      console.error('insertSleepData error:', e);
+      return -1;
+    }
+  }
+
+  async getSleepDataByDate(date: string): Promise<SleepData | null> {
+    try {
+      const predicates = new relationalStore.RdbPredicates('sleep_data');
+      predicates.equalTo('date', date);
+      const result = await this.rdbStore!.query(predicates);
+      if (result.goToFirstRow()) {
+        return new SleepData(
+          result.getString(result.getColumnIndex('date')),
+          result.getLong(result.getColumnIndex('totalMinutes')),
+          result.getLong(result.getColumnIndex('deepSleepMinutes')),
+          result.getLong(result.getColumnIndex('lightSleepMinutes')),
+          result.getLong(result.getColumnIndex('awakeMinutes'))
+        );
+      }
+      return null;
+    } catch (e) {
+      console.error('getSleepDataByDate error:', e);
+      return null;
+    }
+  }
+
+  async getRecentSleepData(limit: number = 7): Promise<SleepData[]> {
+    try {
+      const predicates = new relationalStore.RdbPredicates('sleep_data');
+      predicates.orderByDesc('date');
+      predicates.limitAs(limit);
+      
+      const result = await this.rdbStore!.query(predicates);
+      const list: SleepData[] = [];
+      while (result.goToNextRow()) {
+        list.push(new SleepData(
+          result.getString(result.getColumnIndex('date')),
+          result.getLong(result.getColumnIndex('totalMinutes')),
+          result.getLong(result.getColumnIndex('deepSleepMinutes')),
+          result.getLong(result.getColumnIndex('lightSleepMinutes')),
+          result.getLong(result.getColumnIndex('awakeMinutes'))
+        ));
+      }
+      return list.reverse();
+    } catch (e) {
+      console.error('getRecentSleepData error:', e);
+      return [];
     }
   }
 
@@ -79,6 +178,36 @@ export class HealthDB {
     } catch (e) {
       console.error('getLatestHealthData error:', e);
       return null;
+    }
+  }
+
+  /**
+   * 获取最近N条健康数据用于图表展示
+   * @param limit 条数
+   */
+  async getRecentHealthData(limit: number = 7): Promise<HealthData[]> {
+    try {
+      const predicates = new relationalStore.RdbPredicates('health_data');
+      predicates.orderByDesc('timestamp');
+      predicates.limitAs(limit);
+      
+      const result = await this.rdbStore!.query(predicates);
+      const list: HealthData[] = [];
+      while (result.goToNextRow()) {
+        const data = new HealthData(
+          result.getLong(result.getColumnIndex('heartRate')),
+          result.getLong(result.getColumnIndex('steps')),
+          result.getLong(result.getColumnIndex('calories')),
+          result.getLong(result.getColumnIndex('bloodOxygen'))
+        );
+        data.timestamp = result.getLong(result.getColumnIndex('timestamp'));
+        list.push(data);
+      }
+      // 数据库查出来是倒序的，反转一下变成时间正序，方便图表展示
+      return list.reverse();
+    } catch (e) {
+      console.error('getRecentHealthData error:', e);
+      return [];
     }
   }
 
