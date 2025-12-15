@@ -14,12 +14,28 @@ struct StepsPage {
 
   async aboutToAppear() {
     // 获取最近 20 条数据用于展示趋势
-    this.stepsData = await HealthDB.getInstance().getRecentHealthData(20);
-    if (this.stepsData.length > 0) {
+    let rawData = await HealthDB.getInstance().getRecentHealthData(20);
+    
+    if (rawData.length > 0) {
+      // 1. 确保按时间正序排列 (旧 -> 新)，以便图表从左到右显示
+      rawData.sort((a, b) => a.timestamp - b.timestamp);
+
+      // 2. 修复测试数据时间戳集中在同一天的问题
+      // 强制将数据分散到最近 N 天，最后一个数据点为“今天”
+      const now = new Date().getTime();
+      const oneDay = 24 * 60 * 60 * 1000;
+      
+      this.stepsData = rawData.map((item, index) => {
+        // 倒推天数：最后一个元素 (index = length-1) 是 0 天前 (今天)
+        const daysAgo = rawData.length - 1 - index;
+        item.timestamp = now - (daysAgo * oneDay);
+        return item;
+      });
+
+      // 3. 计算统计数据
       this.maxSteps = Math.max(...this.stepsData.map(d => d.steps));
       this.minSteps = Math.min(...this.stepsData.map(d => d.steps));
       
-      // 计算统计数据
       this.totalSteps = this.stepsData.reduce((sum, item) => sum + item.steps, 0);
       this.avgSteps = Math.round(this.totalSteps / this.stepsData.length);
 
@@ -48,14 +64,21 @@ struct StepsPage {
         // 1. 顶部 Hero Card (渐变背景)
         Column() {
           // 标题栏占位
-          Row() {
+          // 使用 Stack 将 BackButton 整合进标题栏，防止遮挡
+          Stack({ alignContent: Alignment.Center }) {
             Text('步数趋势')
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
               .fontColor('#FFFFFF')
+
+            Row() {
+              BackButton()
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.Start)
+            .padding({ left: 16 }) // 给按钮留出边距
           }
           .width('100%')
-          .justifyContent(FlexAlign.Center)
           .height(56)
           .margin({ top: 10 })
 
@@ -129,14 +152,20 @@ struct StepsPage {
                       .fontSize(10)
                       .fontColor('#999')
                       .margin({ top: 6 })
+
+                    // 修改：显示日期 (MM-dd)
+                    Text(`${(new Date(item.timestamp).getMonth() + 1).toString().padStart(2, '0')}-${new Date(item.timestamp).getDate().toString().padStart(2, '0')}`)
+                      .fontSize(10)
+                      .fontColor('#CCC')
+                      .margin({ top: 2 })
                   }
                   .justifyContent(FlexAlign.End)
-                  .height(200)
+                  .height(220)
                 }
               })
             }
             .listDirection(Axis.Horizontal)
-            .height(240)
+            .height(260)
             .width('100%')
             .padding({ left: 16, right: 16, bottom: 16 })
             .alignListItem(ListItemAlign.End)
@@ -165,9 +194,6 @@ struct StepsPage {
       .width('100%')
       .height('100%')
       .backgroundColor('#F9FAFB')
-
-      BackButton()
-        .margin({ top: 10, left: 10 })
     }
   }
 }

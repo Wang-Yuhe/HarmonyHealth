@@ -34,14 +34,21 @@ struct SleepPage {
       Column() {
         // 1. 顶部 Hero Card (深蓝夜空渐变)
         Column() {
-          Row() {
+          // 使用 Stack 将 BackButton 整合进标题栏，防止遮挡
+          Stack({ alignContent: Alignment.Center }) {
             Text('睡眠分析')
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
               .fontColor('#FFFFFF')
+
+            Row() {
+              BackButton()
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.Start)
+            .padding({ left: 16 })
           }
           .width('100%')
-          .justifyContent(FlexAlign.Center)
           .height(56)
           .margin({ top: 10 })
 
@@ -169,9 +176,6 @@ struct SleepPage {
       .width('100%')
       .height('100%')
       .backgroundColor('#F5F7FA')
-
-      BackButton()
-        .margin({ top: 10, left: 10 })
     }
   }
 
