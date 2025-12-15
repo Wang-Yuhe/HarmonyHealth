@@ -1,98 +1,243 @@
-import { BackButton } from "../../common/components/BackButton";
-import { MedicalRecord } from "../../common/model/MedicalRecordModel";
-import { router } from "@kit.ArkUI";
+// entry/src/main/ets/pages/MedicalHistory/MedicalHistoryPage.ets
+import router from '@ohos.router';
+import { MedicalRecord } from '../../common/model/MedicalRecordModel';
 
 @Entry
 @Component
-struct DiseasePage {
+export struct DiseasePage {
+  // 绑定全局持久化数据
   @StorageLink('MedicalRecords') records: MedicalRecord[] = [];
 
+  // 搜索关键词状态
+  @State searchText: string = '';
+
   build() {
-    Column() {
-      // 顶部导航
-      Row() {
-        Image($r('app.media.backButton'))
-          .width(24).height(24)
-          .onClick(() => router.back())
-        Text('疾病历史档案').fontSize(20).fontWeight(FontWeight.Bold).margin({ left: 16 })
-      }
-
-      .width('100%')
-      .padding(20)
-      .backgroundColor(Color.White)
-
-      // 如果没有数据，显示空状态
-      if (this.records.length === 0) {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      // 底层背景容器
+      Column() {
+        // ===============================================
+        // 1. 顶部紫色头部区域 (模仿参考图的 Header)
+        // ===============================================
         Column() {
-          Text('暂无病历数据').fontColor('#999').margin({ top: 50 })
-        }.width('100%')
-      } else {
-        List({ space: 12 }) {
-          ForEach(this.records, (item: MedicalRecord) => {
-            ListItem() {
-              Row() {
-                // 左侧图标或缩略图
-                Image($r(`app.media.icon`)) // 替换为默认图标
-                  .width(50).height(50)
-                  .borderRadius(8)
-                  .backgroundColor('#eee')
-
-                // 中间信息
-                Column({ space: 4 }) {
-                  Text(item.title).fontSize(16).fontWeight(FontWeight.Medium)
-                  Text(`${item.date.split('T')[0]} | ${item.hospital}`)
-                    .fontSize(12).fontColor('#999')
-
-                  // 标签展示
-                  Row() {
-                    ForEach(item.tags, (tag: string) => {
-                      Text(tag)
-                        .fontSize(10)
-                        .fontColor('#666')
-                        .backgroundColor('#f0f0f0')
-                        .padding(3)
-                        .borderRadius(4)
-                        .margin({ right: 4 })
-                    })
-                  }
-                }
-                .layoutWeight(1)
-                .alignItems(HorizontalAlign.Start)
-                .padding({ left: 12 })
-
-                // 右侧箭头
-                Text('>').fontColor('#ccc')
-              }
-              .padding(16)
-              .backgroundColor(Color.White)
-              .borderRadius(12)
-              .width('100%')
+          // 1.1 导航栏 (返回按钮 + 标题)
+          Row() {
+            // 返回按钮 (白色圆形背景)
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              Image($r('app.media.backButton')) // 确保图标存在，或者用 Text('<') 代替
+                .width(20).height(20)
+                .fillColor('#4A3B99') // 图标颜色
             }
-            .onClick(() => {
-              router.pushUrl({
-                url: 'pages/RecordEditPage', // 跳转到详情页
-                params: { record: item } // 传递数据
-              })
-            })
-          }, (item: MedicalRecord) => JSON.stringify(item))
-        }
+            .width(40).height(40)
+            .backgroundColor(Color.White)
+            .onClick(() => router.back())
 
-        .layoutWeight(1)
-        .padding({ left: 16, right: 16, top: 10 })
+            Text('疾病历史档案')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+              .margin({ left: 16 })
+
+            Blank()
+          }
+          .width('100%')
+          .padding({ top: 12, bottom: 20 })
+
+          // 1.2 统计数据展示 (模仿参考图的大数字)
+          Row() {
+            Column() {
+              Text(this.records.length.toString()) // 大数字
+                .fontSize(48)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(Color.White)
+                .lineHeight(56)
+
+              Text('总记录数') // 小标签
+                .fontSize(14)
+                .fontColor('rgba(255,255,255,0.7)')
+                .margin({ top: 4 })
+            }
+            .alignItems(HorizontalAlign.Start)
+
+            Blank()
+
+          }
+          .width('100%')
+          .padding({ left: 10, right: 10, bottom: 30 })
+
+        }
+        .width('100%')
+        .padding({ left: 20, right: 20, top: 10 })
+        // 紫色渐变背景
+        .linearGradient({
+          angle: 180,
+          colors: [['#4A3B99', 0.0], ['#352880', 1.0]]
+        })
+
+        // ===============================================
+        // 2. 下方白色卡片区域 (模仿参考图的白色面板)
+        // ===============================================
+        Column() {
+          // 2.1 搜索框 (放在白色区域顶部)
+          Search({ placeholder: '搜索病历标题、医院或日期...' })
+            .width('100%')
+            .height(45)
+            .backgroundColor('#F5F6FA') // 浅灰背景
+            .placeholderColor('#A0A0A0')
+            .margin({ top: 20, bottom: 10 })
+            .onChange((value: string) => {
+              this.searchText = value;
+            })
+
+          // 2.2 内容列表 或 空状态
+          if (this.records.length === 0) {
+            this.buildEmptyState()
+          } else {
+            List({ space: 14 }) {
+              ForEach(this.records.filter(item =>
+              item.title.includes(this.searchText) ||
+              item.hospital.includes(this.searchText)
+              ), (item: MedicalRecord) => {
+
+                ListItem() {
+                  this.buildRecordCard(item)
+                }
+                .onClick(() => {
+                  router.pushUrl({
+                    url: 'pages/RecordEditPage',
+                    params: { record: item }
+                  })
+                })
+
+              }, (item: MedicalRecord) => JSON.stringify(item))
+
+              // 底部垫高
+              ListItem().height(80)
+            }
+            .layoutWeight(1)
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring)
+          }
+        }
+        .width('100%')
+        .layoutWeight(1) // 占满剩余高度
+        .backgroundColor(Color.White)
+        .padding({ left: 20, right: 20 })
+        // 左上右上圆角，营造“卡片插入”效果
+        .borderRadius({ topLeft: 30, topRight: 30 })
+        .margin({ top: -20 }) // 稍微向上重叠一点，显得更紧凑
       }
-        // 底部添加按钮 (悬浮)
-        Button('+ 录入新病历')
-          .width('90%')
-          .height(50)
-          .backgroundColor('#007DFF')
-          .margin({ bottom: 20 })
-          .shadow({ radius: 10, color: '#40007DFF', offsetY: 5 })
-          .onClick(() => {
-            this.getUIContext().getRouter().pushUrl({ url: `pages/AddRecordPage`, })
-          })
+      .width('100%')
+      .height('100%')
+      .backgroundColor('#352880') // 防止底部露出白色缝隙
+
+      // ===============================================
+      // 3. 悬浮添加按钮 (FAB) - 紫色系
+      // ===============================================
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Text('+')
+          .fontSize(32)
+          .fontColor(Color.White)
+          .fontWeight(FontWeight.Lighter)
+          .margin({ bottom: 4 })
+      }
+      .width(60)
+      .height(60)
+      // 使用更亮的紫色作为按钮，形成对比
+      .backgroundColor('#6C5DD3')
+      .shadow({ radius: 10, color: '#40352880', offsetY: 6 })
+      .margin({ right: 24, bottom: 32 })
+      .onClick(() => {
+        router.pushUrl({ url: 'pages/AddRecordPage' })
+      })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F1F3F5')
+  }
+
+  // --- 空状态 UI (适配紫色风格) ---
+  @Builder buildEmptyState() {
+    Column() {
+      // 使用文件夹图标或Emoji
+      Text('📂')
+        .fontSize(70)
+        .margin({ bottom: 20, top: 60 })
+        .opacity(0.8)
+
+      Text('暂无病历数据')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#333')
+        .margin({ bottom: 8 })
+
+      Text('您的健康档案空空如也\n点击右下角按钮录入第一条数据')
+        .fontSize(14)
+        .fontColor('#999')
+        .textAlign(TextAlign.Center)
+        .lineHeight(22)
+        .margin({ bottom: 40 })
+
+      Button('立即录入')
+        .width(160)
+        .height(42)
+        .fontSize(15)
+        .backgroundColor('#F0EFFF') // 极淡的紫色背景
+        .fontColor('#4A3B99')       // 深紫色文字
+        .onClick(() => {
+          router.pushUrl({ url: 'pages/AddRecordPage' })
+        })
+    }
+    .width('100%')
+    .height('100%')
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  // --- 病历卡片 UI (柱状图风格的列表项) ---
+  @Builder buildRecordCard(item: MedicalRecord) {
+    Row() {
+      // 左侧装饰条 (模仿柱状图的感觉)
+      Column()
+        .width(4)
+        .height(40)
+        .backgroundColor('#6C5DD3') // 亮紫色
+        .borderRadius(2)
+        .margin({ right: 12 })
+
+      // 中间内容
+      Column({ space: 4 }) {
+        Text(item.title)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#333')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+        Text(`${typeof item.date === 'string' ? item.date.split('T')[0] : '未知日期'} | ${item.hospital}`)
+          .fontSize(12)
+          .fontColor('#999')
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      // 右侧 PDF/图片 图标
+      if (item.pdfUri) {
+        Text('PDF')
+          .fontSize(10)
+          .fontColor(Color.White)
+          .backgroundColor('#FF6B6B')
+          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+          .borderRadius(4)
+      } else if (item.imageUri) {
+        Image(item.imageUri)
+          .width(36).height(36)
+          .borderRadius(6)
+          .objectFit(ImageFit.Cover)
+          .backgroundColor('#F0F0F0')
+      }
+    }
+    .width('100%')
+    .padding(16)
+    .backgroundColor('#FBFBFD') // 极淡的灰紫色，区别于纯白背景
+    .borderRadius(16)
+    .margin({ bottom: 2 })
   }
 }
