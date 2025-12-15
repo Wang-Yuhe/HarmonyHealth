@@ -44,137 +44,130 @@ struct StepsPage {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      // 1. 背景层
-      Column()
-        .width('100%')
-        .height('100%')
-        .linearGradient({
-          angle: 180,
-          colors: [['#FFF0F5', 0.0], ['#FFFFFF', 0.4]] // 浅粉色渐变
-        })
-
       Column() {
-        // 标题栏占位 (由 BackButton 和 标题组成)
-        Row() {
-          Text('步数趋势')
-            .fontSize(20)
+        // 1. 顶部 Hero Card (渐变背景)
+        Column() {
+          // 标题栏占位
+          Row() {
+            Text('步数趋势')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#FFFFFF')
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
+          .height(56)
+          .margin({ top: 10 })
+
+          // 核心数据展示
+          Row() {
+            Column() {
+              Text('平均步数')
+                .fontSize(14)
+                .fontColor('rgba(255,255,255,0.8)')
+              Text(`${this.avgSteps}`)
+                .fontSize(36)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#FFFFFF')
+                .margin({ top: 8 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            
+            Blank()
+
+            Column() {
+              Text('总计步数')
+                .fontSize(14)
+                .fontColor('rgba(255,255,255,0.8)')
+              Text(`${this.totalSteps}`)
+                .fontSize(24)
+                .fontWeight(FontWeight.Medium)
+                .fontColor('#FFFFFF')
+                .margin({ top: 12 })
+            }
+            .alignItems(HorizontalAlign.End)
+          }
+          .width('100%')
+          .padding({ left: 24, right: 24, bottom: 30 })
+        }
+        .width('100%')
+        .linearGradient({
+          angle: 135,
+          colors: [['#FF9A9E', 0.0], ['#FECFEF', 1.0]] // 暖色调渐变
+        })
+        .borderRadius({ bottomLeft: 30, bottomRight: 30 })
+        .shadow({ radius: 20, color: 'rgba(255, 154, 158, 0.4)', offsetY: 10 })
+
+        // 2. 图表区域 (上浮卡片)
+        Column() {
+          Text('近期活动记录')
+            .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333')
-        }
-        .width('100%')
-        .justifyContent(FlexAlign.Center)
-        .height(56)
-        .margin({ top: 10 })
-
-        // 2. 统计概览卡片
-        Row() {
-          Column() {
-            Text('平均步数')
-              .fontSize(14)
-              .fontColor('#666')
-            Text(`${this.avgSteps}`)
-              .fontSize(24)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#FF6B81')
-              .margin({ top: 4 })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Center)
-
-          Divider().vertical(true).height(30).color('#EEE')
-
-          Column() {
-            Text('总计步数')
-              .fontSize(14)
-              .fontColor('#666')
-            Text(`${this.totalSteps}`)
-              .fontSize(24)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#333')
-              .margin({ top: 4 })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Center)
-        }
-        .width('90%')
-        .padding(20)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(16)
-        .shadow({ radius: 10, color: 'rgba(255, 182, 193, 0.2)', offsetY: 4 })
-        .margin({ top: 20, bottom: 20 })
-
-        // 3. 图表区域
-        if (this.stepsData.length > 0) {
-          Column() {
-            Text('近期活动记录')
-              .fontSize(16)
-              .fontWeight(FontWeight.Bold)
-              .width('100%')
-              .padding({ left: 16, top: 16 })
-            
+            .width('100%')
+            .padding({ left: 20, top: 20 })
+          
+          if (this.stepsData.length > 0) {
             List({ space: 12 }) {
               ForEach(this.stepsData, (item: HealthData) => {
                 ListItem() {
                   Column() {
                     // 柱子
                     Column()
-                      .width(16)
-                      .height(this.getBarHeight(item.steps)) // 使用动态高度
-                      .backgroundColor(item.steps >= this.avgSteps ? '#FF6B81' : '#FFB6C1') // 高于平均值颜色更深
-                      .borderRadius({ topLeft: 8, topRight: 8, bottomLeft: 8, bottomRight: 8 })
+                      .width(12)
+                      .height(this.getBarHeight(item.steps))
+                      .linearGradient({
+                        angle: 180,
+                        colors: item.steps >= this.avgSteps 
+                          ? [['#FF9A9E', 0.0], ['#FECFEF', 1.0]] 
+                          : [['#E0E0E0', 0.0], ['#F5F5F5', 1.0]]
+                      })
+                      .borderRadius(6)
                     
                     // 数值
                     Text(`${item.steps}`)
                       .fontSize(10)
                       .fontColor('#999')
                       .margin({ top: 6 })
-                    
-                    // 时间 (只显示时:分)
-                    Text(new Date(item.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
-                      .fontSize(10)
-                      .fontColor('#CCC')
-                      .margin({ top: 2 })
                   }
                   .justifyContent(FlexAlign.End)
-                  .height(220)
+                  .height(200)
                 }
               })
             }
             .listDirection(Axis.Horizontal)
-            .height(260)
+            .height(240)
             .width('100%')
             .padding({ left: 16, right: 16, bottom: 16 })
             .alignListItem(ListItemAlign.End)
+          } else {
+            Column() {
+              Image($r('app.media.startIcon'))
+                .width(80)
+                .height(80)
+                .opacity(0.2)
+                .grayscale(1)
+              Text('暂无数据')
+                .fontSize(14)
+                .fontColor('#CCC')
+                .margin({ top: 10 })
+            }
+            .height(200)
+            .justifyContent(FlexAlign.Center)
           }
-          .width('90%')
-          .backgroundColor('#FFFFFF')
-          .borderRadius(16)
-          .shadow({ radius: 10, color: 'rgba(0,0,0,0.05)', offsetY: 4 })
-        } else {
-          Column() {
-            Image($r('app.media.startIcon')) // 替换为暂无数据图
-              .width(100)
-              .height(100)
-              .opacity(0.3)
-              .grayscale(1)
-            Text('暂无步数数据')
-              .fontSize(16)
-              .fontColor('#999')
-              .margin({ top: 16 })
-          }
-          .width('100%')
-          .height(300)
-          .justifyContent(FlexAlign.Center)
         }
+        .width('90%')
+        .backgroundColor('#FFFFFF')
+        .borderRadius(24)
+        .shadow({ radius: 30, color: 'rgba(0,0,0,0.05)', offsetY: 10 })
+        .margin({ top: -20 }) // 负边距，实现卡片上浮效果
       }
       .width('100%')
       .height('100%')
+      .backgroundColor('#F9FAFB')
 
       BackButton()
         .margin({ top: 10, left: 10 })
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor('#F9FAFB') // 整体背景微灰
   }
 }

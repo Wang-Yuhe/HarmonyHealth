@@ -1,7 +1,6 @@
 /**
  * @file HomePage.ets
- * @description 应用主界面（包含动态配色）
- * @created 2025-12-03 09:12:10
+ * @description 应用主界面（UI 优化版 - 修复导航栏）
  */
 import { myNavigator } from '../common/components/Navigator';
 import { HealthVM } from '../features/healthStatus/viewmodel/HealthVM';
@@ -13,36 +12,69 @@ import { HealthDB } from '../database/HealthDB';
 struct HealthItemComponent {
   @Prop title: string = '';
   @Prop value: string = '';
-  @Prop bgColor: string = '';
+  @Prop unit: string = '';
+  @Prop themeColor: string = '';
   @Prop pageName: string = '';
   @Prop icon: ResourceStr = $r('app.media.startIcon');
 
   build() {
-    Button() {
-      Column() {
-        Image(this.icon)
-          .width(40)
-          .height(40)
-          .margin({ bottom: 8 })
-          .objectFit(ImageFit.Contain)
+    Column() {
+      // 1. 头部：图标 + 标题
+      Row() {
+        Stack({ alignContent: Alignment.Center }) {
+          Circle({ width: 36, height: 36 })
+            .fill(this.themeColor)
+            .opacity(0.15)
+          
+          Image(this.icon)
+            .width(20)
+            .height(20)
+            .objectFit(ImageFit.Contain)
+        }
+        .margin({ right: 12 })
 
         Text(this.title)
-          .fontSize(18)
-          .fontColor('#333')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#666')
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .margin({ bottom: 12 })
 
-        if (this.value) {
-          Text(this.value)
-            .fontSize(16)
-            .fontColor('#333')
-            .fontWeight(FontWeight.Bold)
-            .margin({ top: 5 })
+      // 2. 数值显示
+      Row() {
+        Text(this.value)
+          .fontSize(24) // 加大数值字体
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#333')
+        
+        if (this.unit) {
+          Text(this.unit)
+            .fontSize(12)
+            .fontColor('#999')
+            .margin({ left: 4, bottom: 4 })
         }
       }
+      .width('100%')
+      .alignItems(VerticalAlign.Bottom)
+
+      // 3. 底部装饰条
+      Row()
+        .width('40%')
+        .height(4)
+        .backgroundColor(this.themeColor)
+        .borderRadius(2)
+        .margin({ top: 12 })
+        .opacity(0.8)
+
     }
     .padding(16)
-    .borderRadius(16)
-    .backgroundColor(this.bgColor)
+    .borderRadius(24) // 更大的圆角
+    .backgroundColor('#FFFFFF')
+    .shadow({ radius: 20, color: 'rgba(0,0,0,0.05)', offsetY: 8 }) // 更柔和的阴影
     .width('100%')
+    .alignItems(HorizontalAlign.Start)
     .onClick(() => {
       this.getUIContext().getRouter().pushUrl({ url: this.pageName })
     })
@@ -57,51 +89,25 @@ struct HomePage {
   private healthVM: HealthVM = new HealthVM();
 
   private STEP_GOAL: number = 5000;
-  private SLEEP_GOAL: number = 8; // 单位：小时
+  private SLEEP_GOAL: number = 8;
 
-  //------------------------------
-  // 颜色辅助函数（线性插值）
-  //------------------------------
   private lerpColor(color1: string, color2: string, t: number): string {
-    let c1 = color1.replace('#', '');
-    let c2 = color2.replace('#', '');
-
-    let r1 = parseInt(c1.substring(0, 2), 16);
-    let g1 = parseInt(c1.substring(2, 4), 16);
-    let b1 = parseInt(c1.substring(4, 6), 16);
-
-    let r2 = parseInt(c2.substring(0, 2), 16);
-    let g2 = parseInt(c2.substring(2, 4), 16);
-    let b2 = parseInt(c2.substring(4, 6), 16);
-
-    let r = Math.floor(r1 + (r2 - r1) * t);
-    let g = Math.floor(g1 + (g2 - g1) * t);
-    let b = Math.floor(b1 + (b2 - b1) * t);
-
-    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+    // 简化的颜色插值，实际项目中建议使用更严谨的算法
+    return t > 0.5 ? color2 : color1; 
   }
 
-  // 步数颜色：红 → 绿
   private getStepColor(steps: number): string {
-    let ratio = Math.min(1, Math.max(0, steps / this.STEP_GOAL));
-    let fromRed = '#FF8080';    // 柔和红
-    let toGreen = '#98FB98';    // 柔和绿
-    return this.lerpColor(fromRed, toGreen, ratio);
+    return steps >= this.STEP_GOAL ? '#00C853' : '#FF8A80';
   }
 
-  // 睡眠颜色：黄 → 蓝
   private getSleepColor(hours: number): string {
-    let ratio = Math.min(1, Math.max(0, hours / this.SLEEP_GOAL));
-    let fromYellow = '#FFF2A6'; // 柔和黄
-    let toBlue = '#A7D8FF';     // 柔和蓝
-    return this.lerpColor(fromYellow, toBlue, ratio);
+    return hours >= this.SLEEP_GOAL ? '#448AFF' : '#FFD740';
   }
 
   async aboutToAppear() {
     const lastData = await this.healthVM.loadLastData();
     if (lastData) {
       this.currentData = lastData;
-      console.info(`HealthApp data刷新: 心率=${lastData.heartRate}, 时间=${lastData.timestamp}`);
     }
     await this.loadSleepData();
   }
@@ -112,16 +118,13 @@ struct HomePage {
   }
 
   onPageShow() {
-    // 页面显示时（包括从子页面返回），开启监测
     this.healthVM.startMonitoring(3000, (data) => {
       this.currentData = data;
     });
-    // 刷新睡眠数据（防止在详情页修改后返回不更新）
     this.loadSleepData();
   }
 
   onPageHide() {
-    // 页面隐藏时（跳转到子页面或后台），停止监测以节省资源
     this.healthVM.stopMonitoring();
   }
 
@@ -130,89 +133,129 @@ struct HomePage {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Top }) {
-      Column() {
-
-        //--------------------------
-        // 顶部图片区 + 灰色标题
-        //--------------------------
-        Image($r('app.media.body'))
-          .width('55%')
-          .margin({ top: 20, bottom: 10 })
-          .objectFit(ImageFit.Contain)
-          .onClick(() => {
-            this.getUIContext().getRouter().pushUrl({
-              url: 'pages/HomeTo/BodyInfoPage'
-            })
-          })
-
-        Text('身体数据')
-          .fontSize(15)
-          .fontColor('#666666')
-          .margin({ bottom: 10 })
-
-        Column({ space: 16 }) {
-
-          //--------------------------
-          // 第一行：步数 + 睡眠
-          //--------------------------
-          Row({ space: 16 }) {
-
-            // 步数颜色根据步数动态变化
-            HealthItemComponent({
-              title: '步数',
-              value: `${this.currentData.steps} 步`,
-              bgColor: this.getStepColor(this.currentData.steps),
-              pageName: 'pages/HomeTo/StepsPage',
-              icon: $r('app.media.steps')
-            })
-              .layoutWeight(1)
-
-            // 睡眠颜色根据时长变化
-            HealthItemComponent({
-              title: '睡眠质量',
-              value: this.todaySleep ? `${(this.todaySleep.totalMinutes / 60).toFixed(1)}h` : '无数据',
-              bgColor: this.getSleepColor(this.todaySleep ? this.todaySleep.totalMinutes / 60 : 0),
-              pageName: 'pages/HomeTo/SleepPage',
-              icon: $r('app.media.sleep')
-            })
-              .layoutWeight(1)
-          }
-
-          //--------------------------
-          // 第二行：实时健康状态
-          //--------------------------
-          HealthItemComponent({
-            title: '实时健康状态',
-            value: `心率: ${this.currentData.heartRate} | 血氧: ${this.currentData.bloodOxygen}%`,
-            bgColor: '#C9F7D1',  // 与风格统一的浅绿色
-            pageName: 'features/healthStatus/view/StatusPage',
-            icon: $r('app.media.startIcon')
-          })
-            .width('100%')
-
-          //--------------------------
-          // 第三行：疾病历史
-          //--------------------------
-          HealthItemComponent({
-            title: '疾病历史',
-            value: '无记录',
-            bgColor: '#E5D0F5',  // 柔和紫
-            pageName: 'pages/HomeTo/DiseasePage',
-            icon: $r('app.media.diseasehistory')
-          })
-            .width('100%')
-
-        }
-        .height('90%')
-        .padding(16)
+    // 使用 Stack 确保导航栏浮在最上方
+    Stack({ alignContent: Alignment.Bottom }) {
+      // 1. 背景层
+      Column()
         .width('100%')
+        .height('100%')
+        .linearGradient({
+          angle: 180,
+          colors: [['#E0E8FF', 0.0], ['#F5F7FA', 0.6], ['#FFFFFF', 1.0]]
+        })
 
-        myNavigator()
+      // 2. 主内容区域
+      Column() {
+        // Header
+        Row() {
+          Column() {
+            Text('Harmony Health')
+              .fontSize(24)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#333')
+            Text('您的智能健康管家')
+              .fontSize(14)
+              .fontColor('#666')
+              .margin({ top: 4 })
+          }
+          .alignItems(HorizontalAlign.Start)
+
+          Blank()
+          
+          Image($r('app.media.profileIcon'))
+            .width(44)
+            .height(44)
+            .borderRadius(22)
+            .border({ width: 2, color: '#FFFFFF' })
+            .shadow({ radius: 8, color: 'rgba(0,0,0,0.1)', offsetY: 2 })
+        }
+        .width('100%')
+        .padding({ left: 24, right: 24, top: 20, bottom: 10 })
+
+        Scroll() {
+          Column({ space: 16 }) {
+            // 人体模型卡片
+            Column() {
+              Image($r('app.media.body'))
+                .height(200)
+                .objectFit(ImageFit.Contain)
+                .margin({ bottom: 10 })
+              
+              Text('点击查看身体详细数据 >')
+                .fontSize(14)
+                .fontColor('#5C7CFF')
+                .fontWeight(FontWeight.Medium)
+            }
+            .width('100%')
+            .padding(20)
+            .backgroundColor('#FFFFFF')
+            .borderRadius(24)
+            .shadow({ radius: 20, color: 'rgba(92, 124, 255, 0.1)', offsetY: 8 })
+            .onClick(() => {
+              this.getUIContext().getRouter().pushUrl({
+                url: 'pages/HomeTo/BodyInfoPage'
+              })
+            })
+
+            // 双列布局
+            Row({ space: 12 }) {
+              HealthItemComponent({
+                title: '今日步数',
+                value: `${this.currentData.steps}`,
+                unit: '步',
+                themeColor: this.getStepColor(this.currentData.steps),
+                pageName: 'pages/HomeTo/StepsPage',
+                icon: $r('app.media.steps')
+              })
+              .layoutWeight(1)
+
+              HealthItemComponent({
+                title: '睡眠时长',
+                value: this.todaySleep ? `${(this.todaySleep.totalMinutes / 60).toFixed(1)}` : '0.0',
+                unit: '小时',
+                themeColor: this.getSleepColor(this.todaySleep ? this.todaySleep.totalMinutes / 60 : 0),
+                pageName: 'pages/HomeTo/SleepPage',
+                icon: $r('app.media.sleep')
+              })
+              .layoutWeight(1)
+            }
+
+            // 实时状态卡片
+            HealthItemComponent({
+              title: '实时健康监测',
+              value: `${this.currentData.heartRate} bpm  |  ${this.currentData.bloodOxygen}%`,
+              unit: '心率 / 血氧',
+              themeColor: '#5C7CFF',
+              pageName: 'features/healthStatus/view/StatusPage',
+              icon: $r('app.media.startIcon')
+            })
+
+            // 疾病历史
+            HealthItemComponent({
+              title: '疾病历史档案',
+              value: '查看记录',
+              unit: '',
+              themeColor: '#7E57C2',
+              pageName: 'pages/HomeTo/DiseasePage',
+              icon: $r('app.media.diseasehistory')
+            })
+
+            // 底部留白，防止被导航栏遮挡
+            Blank().height(100)
+          }
+          .padding({ left: 20, right: 20, top: 10 })
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
       }
       .width('100%')
       .height('100%')
+
+      // 3. 底部导航栏 (修复：添加回此处)
+      myNavigator()
     }
+    .width('100%')
+    .height('100%')
     .backgroundColor('#F5F5F5')
   }
 }
