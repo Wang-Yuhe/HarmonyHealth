@@ -17,25 +17,24 @@ struct DataCard {
   @Prop title: string = '';
   @Prop value: string = '';
   @Prop unit: string = '';
-  @Prop icon: ResourceStr = $r('app.media.startIcon'); // 需替换为实际图标
+  @Prop icon: ResourceStr = $r('app.media.startIcon');
   @Prop themeColor: string = '#5C7CFF';
 
   build() {
     Column() {
-      // 图标与标题
       Row() {
         Stack({ alignContent: Alignment.Center }) {
-          Circle({ width: 32, height: 32 })
+          Circle({ width: 36, height: 36 })
             .fill(this.themeColor)
-            .opacity(0.15)
+            .opacity(0.1)
           
           Image(this.icon)
-            .width(18)
-            .height(18)
+            .width(20)
+            .height(20)
             .fillColor(this.themeColor)
             .objectFit(ImageFit.Contain)
         }
-        .margin({ right: 8 })
+        .margin({ right: 10 })
 
         Text(this.title)
           .fontSize(14)
@@ -43,28 +42,27 @@ struct DataCard {
           .fontWeight(FontWeight.Medium)
       }
       .width('100%')
-      .margin({ bottom: 12 })
+      .margin({ bottom: 16 })
       
-      // 数值展示
       Row() {
         Text(this.value)
-          .fontSize(28)
+          .fontSize(30)
           .fontWeight(FontWeight.Bold)
           .fontColor('#333')
         Text(this.unit)
           .fontSize(12)
           .fontColor('#999')
-          .margin({ left: 4, bottom: 4 })
+          .margin({ left: 6, bottom: 6 })
       }
       .width('100%')
       .alignItems(VerticalAlign.Bottom)
     }
     .width('100%')
-    .height(110)
-    .padding(16)
+    .height(120)
+    .padding(18)
     .backgroundColor('#FFFFFF')
-    .borderRadius(20)
-    .shadow({ radius: 15, color: 'rgba(0,0,0,0.05)', offsetY: 5 })
+    .borderRadius(24)
+    .shadow({ radius: 20, color: 'rgba(0,0,0,0.04)', offsetY: 6 })
     .alignItems(HorizontalAlign.Start)
     .justifyContent(FlexAlign.Center)
   }
@@ -74,7 +72,7 @@ struct DataCard {
 @Component
 struct StatusPage {
   @State currentData: HealthData = new HealthData(0, 0, 0, 0);
-  @State updateInterval: number = 3; // 默认 3秒
+  @State updateInterval: number = 3;
   @State isMonitoring: boolean = false;
   
   private healthVM: HealthVM = new HealthVM();
@@ -82,28 +80,24 @@ struct StatusPage {
 
   aboutToAppear() {
     this.router = this.getUIContext().getRouter();
-    // 页面加载时自动开始监测
     this.toggleMonitoring(true);
   }
 
   aboutToDisappear() {
-    // 页面销毁时停止监测，防止内存泄漏
     this.healthVM.stopMonitoring();
   }
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      // 1. 背景层
       Column()
         .width('100%')
         .height('100%')
         .linearGradient({
           angle: 180,
-          colors: [['#E0E8FF', 0.0], ['#F5F7FA', 0.6], ['#FFFFFF', 1.0]]
+          colors: [['#F0F4FF', 0.0], ['#F8F9FB', 0.6], ['#FFFFFF', 1.0]]
         })
 
       Column() {
-        // 标题栏
         Column() {
           Text('实时健康状态')
             .fontSize(24)
@@ -111,34 +105,33 @@ struct StatusPage {
             .fontColor('#333')
           
           Row() {
-            Circle({ width: 6, height: 6 })
+            Circle({ width: 8, height: 8 })
               .fill(this.isMonitoring ? '#00C853' : '#CCC')
-              .margin({ right: 6 })
+              .margin({ right: 8 })
             Text(this.isMonitoring ? '监测中...' : '监测已暂停')
-              .fontSize(12)
+              .fontSize(14)
               .fontColor(this.isMonitoring ? '#00C853' : '#999')
             
-            Blank().width(10)
+            Blank().width(12)
             
             Text(`更新: ${new Date(this.currentData.timestamp).toLocaleTimeString()}`)
               .fontSize(12)
-              .fontColor('#999')
+              .fontColor('#AAA')
           }
           .margin({ top: 8 })
         }
         .width('100%')
         .alignItems(HorizontalAlign.Center)
-        .margin({ top: 20, bottom: 20 })
+        .margin({ top: 24, bottom: 24 })
 
-        // 数据展示区域 (Grid布局)
         Grid() {
           GridItem() {
             DataCard({
               title: '实时心率',
               value: `${this.currentData.heartRate}`,
               unit: 'bpm',
-              themeColor: '#FF6B81', // 红色系
-              icon: $r('app.media.heart') // 建议替换为心形图标
+              themeColor: '#FF5252',
+              icon: $r('app.media.heart')
             })
           }
           GridItem() {
@@ -146,8 +139,8 @@ struct StatusPage {
               title: '血氧饱和度',
               value: `${this.currentData.bloodOxygen}`,
               unit: '%',
-              themeColor: '#448AFF', // 蓝色系
-              icon: $r('app.media.water') // 建议替换为水滴图标
+              themeColor: '#448AFF',
+              icon: $r('app.media.water')
             })
           }
           GridItem() {
@@ -155,7 +148,7 @@ struct StatusPage {
               title: '今日步数',
               value: `${this.currentData.steps}`,
               unit: '步',
-              themeColor: '#00C853', // 绿色系
+              themeColor: '#00C853',
               icon: $r('app.media.steps')
             })
           }
@@ -164,18 +157,17 @@ struct StatusPage {
               title: '能量消耗',
               value: `${this.currentData.calories}`,
               unit: 'kcal',
-              themeColor: '#FFB300', // 橙色系
-              icon: $r('app.media.flame') // 建议替换为火焰图标
+              themeColor: '#FFA000',
+              icon: $r('app.media.flame')
             })
           }
         }
         .columnsTemplate('1fr 1fr')
-        .rowsGap(12)
-        .columnsGap(12)
-        .padding({ left: 16, right: 16 })
-        .height(260)
+        .rowsGap(14)
+        .columnsGap(14)
+        .padding({ left: 20, right: 20 })
+        .height(270)
 
-        // 控制区域
         Column() {
           Row() {
             Column() {
@@ -194,14 +186,11 @@ struct StatusPage {
 
             Toggle({ type: ToggleType.Switch, isOn: this.isMonitoring })
               .selectedColor('#5C7CFF')
-              .onChange((isOn) => {
-                this.toggleMonitoring(isOn);
-              })
+              .onChange((isOn) => { this.toggleMonitoring(isOn); })
           }
           .width('100%')
-          .margin({ bottom: 20 })
+          .margin({ bottom: 24 })
 
-          // 滑动条控制 CD
           Column() {
             Row() {
               Text('更新间隔')
@@ -214,7 +203,7 @@ struct StatusPage {
                 .fontColor('#5C7CFF')
             }
             .width('100%')
-            .margin({ bottom: 10 })
+            .margin({ bottom: 12 })
 
             Slider({
               value: this.updateInterval,
@@ -223,44 +212,37 @@ struct StatusPage {
               step: 1,
               style: SliderStyle.OutSet
             })
-              .trackColor('#E0E0E0')
+              .trackColor('#F0F0F0')
               .selectedColor('#5C7CFF')
               .showSteps(true)
               .onChange((value: number) => {
                 this.updateInterval = value;
-                // 如果正在监测，需要重启定时器以应用新时间
-                if (this.isMonitoring) {
-                  this.toggleMonitoring(true);
-                }
+                if (this.isMonitoring) this.toggleMonitoring(true);
               })
           }
         }
-        .padding(20)
+        .padding(24)
         .backgroundColor('#FFFFFF')
         .borderRadius(24)
-        .margin({ top: 20, left: 16, right: 16 })
-        .shadow({ radius: 20, color: 'rgba(0,0,0,0.05)', offsetY: 5 })
+        .margin({ top: 24, left: 20, right: 20 })
+        .shadow({ radius: 25, color: 'rgba(0,0,0,0.05)', offsetY: 8 })
 
       }
       .width('100%')
       .height('100%')
 
-      // 返回按钮
-      BackButton()
-        .margin({ top: 10, left: 10 })
+      BackButton().margin({ top: 10, left: 10 })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F7FA')
+    .backgroundColor('#F8F9FB')
   }
 
-  // 切换监测状态
   toggleMonitoring(enable: boolean) {
     this.isMonitoring = enable;
     if (enable) {
       this.healthVM.startMonitoring(this.updateInterval * 1000, (data) => {
         this.currentData = data;
-        // console.info(`HealthApp UI刷新: 心率=${data.heartRate}, 时间=${data.timestamp}`);
       });
     } else {
       this.healthVM.stopMonitoring();

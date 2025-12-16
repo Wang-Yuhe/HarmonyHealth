@@ -14,7 +14,6 @@ interface BodyInfoSection {
 @Entry
 @Component
 struct BodyInfoPage {
-  // 默认数据
   private readonly defaultBodyInfoList: BodyInfoItem[] = [
     { label: '性别', value: '男' },
     { label: '身高', value: '175 cm' },
@@ -29,7 +28,6 @@ struct BodyInfoPage {
     { label: '脚长', value: '26 cm' },
     { label: '脚宽', value: '9.5 cm' }
   ]
-  // 使用 @StorageLink 实现自动同步和 UI 刷新
   @StorageLink('BodyInfoList') bodyInfoList: BodyInfoItem[] = []
   private sections: BodyInfoSection[] = [
     { title: '基础数据', keys: ['性别', '身高', '体重'] },
@@ -41,32 +39,27 @@ struct BodyInfoPage {
   @State private editValue: string = ''
 
   aboutToAppear() {
-    // 初始化检查
     if (!this.bodyInfoList || this.bodyInfoList.length === 0) {
       this.bodyInfoList = [...this.defaultBodyInfoList]
     }
   }
 
-  // ---------- 数据逻辑 ----------
   private getItemByKey(key: string): BodyInfoItem {
     const item = this.bodyInfoList.find(i => i.label === key)
     return item ?? { label: key, value: '--' }
   }
 
-  // 计算 BMI
   private getBMI(): string {
     const hStr = this.getItemByKey('身高').value;
     const wStr = this.getItemByKey('体重').value;
     const h = parseFloat(hStr);
     const w = parseFloat(wStr);
     if (!isNaN(h) && !isNaN(w) && h > 0) {
-      // 身高单位换算 cm -> m
       return (w / ((h / 100) * (h / 100))).toFixed(1);
     }
     return '--';
   }
 
-  // 获取 BMI 状态
   private getBMIStatus(): string {
     const bmi = parseFloat(this.getBMI());
     if (isNaN(bmi)) return '未知';
@@ -74,6 +67,24 @@ struct BodyInfoPage {
     if (bmi < 24) return '正常';
     if (bmi < 28) return '超重';
     return '肥胖';
+  }
+
+  // 新增：计算 BMI 在进度条上的位置 (百分比 0-100%)
+  private getBMIPercent(): string {
+    const bmiStr = this.getBMI();
+    if (bmiStr === '--') return '0%';
+    
+    const bmi = parseFloat(bmiStr);
+    // 设定显示范围：10 ~ 35 (涵盖绝大多数情况)
+    const min = 10;
+    const max = 35;
+    
+    let val = bmi;
+    if (val < min) val = min;
+    if (val > max) val = max;
+    
+    const percent = (val - min) / (max - min) * 100;
+    return `${percent}%`;
   }
 
   private startEdit(item: BodyInfoItem): void {
@@ -96,14 +107,10 @@ struct BodyInfoPage {
     this.cancelEdit()
   }
 
-  // ---------- Builder ----------
   @Builder
   private buildEditArea(item: BodyInfoItem) {
     Column() {
-      TextInput({
-        text: this.editValue,
-        placeholder: '请输入数值'
-      })
+      TextInput({ text: this.editValue, placeholder: '请输入数值' })
         .onChange((v: string) => this.editValue = v)
         .height(44)
         .width('100%')
@@ -154,10 +161,10 @@ struct BodyInfoPage {
             .margin({ right: 8 })
           
           Image($r('app.media.alter')) 
-            .width(18)
-            .height(18)
+            .width(16)
+            .height(16)
             .fillColor('#007DFF')
-            .opacity(0.6)
+            .opacity(0.5)
         }
         .onClick(() => this.startEdit(item))
       }
@@ -170,33 +177,25 @@ struct BodyInfoPage {
         this.buildEditArea(item)
       }
 
-      // 只有非最后一行且不在编辑状态时显示分割线
       if (!isLast && this.editingKey !== item.label) {
-        Divider()
-          .color('#F5F5F5')
-          .strokeWidth(1)
+        Divider().color('#F0F0F0').strokeWidth(1)
       }
     }
     .width('100%')
-    .padding({ left: 16, right: 16 })
+    .padding({ left: 20, right: 20 })
   }
 
-  // ---------- 页面主结构 ----------
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
       Column() {
-        // 1. 顶部 Hero Header (蓝色渐变 + BMI 卡片)
+        // 1. 顶部 Hero Header (科技蓝渐变)
         Column() {
-          // 标题栏 (使用 Stack 防止 BackButton 遮挡)
           Stack({ alignContent: Alignment.Center }) {
             Text('身体档案')
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
               .fontColor(Color.White)
-            
-            Row() {
-              BackButton()
-            }
+            Row() { BackButton() }
             .width('100%')
             .justifyContent(FlexAlign.Start)
             .padding({ left: 16 })
@@ -205,14 +204,13 @@ struct BodyInfoPage {
           .width('100%')
           .margin({ top: 10 })
 
-          // BMI 概览卡片
           Row() {
             Column() {
               Text('BMI 指数')
                 .fontSize(14)
                 .fontColor('rgba(255,255,255,0.8)')
               Text(this.getBMI())
-                .fontSize(36)
+                .fontSize(40)
                 .fontWeight(FontWeight.Bold)
                 .fontColor(Color.White)
                 .margin({ top: 4 })
@@ -231,20 +229,72 @@ struct BodyInfoPage {
                 .fontColor(Color.White)
                 .margin({ top: 12 })
                 .backgroundColor('rgba(255,255,255,0.2)')
-                .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-                .borderRadius(16)
+                .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+                .borderRadius(20)
             }
             .alignItems(HorizontalAlign.End)
           }
           .width('100%')
-          .padding({ left: 24, right: 24, bottom: 24, top: 10 })
+          .padding({ left: 24, right: 24, bottom: 10, top: 10 })
+
+          // 新增：BMI 彩色进度条
+          Column() {
+            // 1. 进度条背景 (分段颜色)
+            Row()
+              .width('100%')
+              .height(6)
+              .linearGradient({
+                angle: 90, // 从左到右
+                colors: [
+                  ['#81D4FA', 0.0],  // 偏瘦 (<18.5)
+                  ['#81D4FA', 0.34], 
+                  ['#69F0AE', 0.34], // 正常 start (Green)
+                  ['#69F0AE', 0.56], 
+                  ['#FFD740', 0.56], // 超重 start (Yellow)
+                  ['#FFD740', 0.72], 
+                  ['#FF5252', 0.72], // 肥胖 start (Red)
+                  ['#FF5252', 1.0]
+                ]
+              })
+              .borderRadius(3)
+              .clip(true)
+
+            // 2. 指示器
+            Row() {
+               // 占位，推挤指示器
+               Row().width(this.getBMIPercent()).height(1)
+               
+               // 指示器本体
+               Stack({ alignContent: Alignment.Center }) {
+                 Circle({ width: 14, height: 14 }).fill(Color.White)
+                   .shadow({ radius: 4, color: 'rgba(0,0,0,0.2)', offsetY: 2 })
+                 Circle({ width: 6, height: 6 }).fill('#2979FF')
+               }
+               .offset({ x: -7 }) // 向左回退半径宽度，实现中心对齐
+            }
+            .width('100%')
+            .margin({ top: -10 }) // 向上重叠
+
+            // 3. 刻度标签
+            Row() {
+              Text('偏瘦').fontSize(10).fontColor('rgba(255,255,255,0.7)')
+              Text('正常').fontSize(10).fontColor('rgba(255,255,255,0.9)').fontWeight(FontWeight.Medium)
+              Text('超重').fontSize(10).fontColor('rgba(255,255,255,0.7)')
+              Text('肥胖').fontSize(10).fontColor('rgba(255,255,255,0.7)')
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.SpaceBetween)
+            .margin({ top: 4 })
+          }
+          .width('100%')
+          .padding({ left: 24, right: 24, bottom: 24 })
         }
         .linearGradient({
-          angle: 180,
-          colors: [['#448AFF', 0.0], ['#5C7CFF', 1.0]]
+          angle: 135,
+          colors: [['#2979FF', 0.0], ['#448AFF', 1.0]]
         })
-        .borderRadius({ bottomLeft: 24, bottomRight: 24 })
-        .shadow({ radius: 10, color: 'rgba(68, 138, 255, 0.3)', offsetY: 5 })
+        .borderRadius({ bottomLeft: 32, bottomRight: 32 })
+        .shadow({ radius: 20, color: 'rgba(41, 121, 255, 0.3)', offsetY: 8 })
         .zIndex(1)
 
         // 2. 列表内容
@@ -252,30 +302,26 @@ struct BodyInfoPage {
           Column() {
             ForEach(this.sections, (section: BodyInfoSection) => {
               Column() {
-                // 分组标题
                 Row() {
                   Text(section.title)
-                    .fontSize(14)
+                    .fontSize(15)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor('#007DFF')
+                    .fontColor('#2979FF')
                   Blank()
                 }
                 .width('100%')
-                .padding({ left: 4, bottom: 8, top: 20 })
+                .padding({ left: 8, bottom: 12, top: 24 })
 
-                // 分组卡片
                 Column() {
                   ForEach(section.keys, (key: string, index: number) => {
                     this.buildInfoItem(this.getItemByKey(key), index === section.keys.length - 1)
                   }, (key: string) => key + this.getItemByKey(key).value)
                 }
                 .backgroundColor(Color.White)
-                .borderRadius(16)
-                .shadow({ radius: 15, color: 'rgba(0,0,0,0.05)', offsetY: 2 })
+                .borderRadius(20)
+                .shadow({ radius: 20, color: 'rgba(0,0,0,0.04)', offsetY: 4 })
               }
             })
-            
-            // 底部留白
             Blank().height(40)
           }
           .padding({ left: 16, right: 16 })

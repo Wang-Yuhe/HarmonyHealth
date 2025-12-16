@@ -61,7 +61,7 @@ struct StepsPage {
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
       Column() {
-        // 1. 顶部 Hero Card (渐变背景)
+        // 1. 顶部 Hero Card (活力日落渐变)
         Column() {
           // 标题栏占位
           // 使用 Stack 将 BackButton 整合进标题栏，防止遮挡
@@ -87,12 +87,12 @@ struct StepsPage {
             Column() {
               Text('平均步数')
                 .fontSize(14)
-                .fontColor('rgba(255,255,255,0.8)')
+                .fontColor('rgba(255,255,255,0.9)')
               Text(`${this.avgSteps}`)
-                .fontSize(36)
+                .fontSize(40) // 更大
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#FFFFFF')
-                .margin({ top: 8 })
+                .margin({ top: 4 })
             }
             .alignItems(HorizontalAlign.Start)
             
@@ -101,7 +101,7 @@ struct StepsPage {
             Column() {
               Text('总计步数')
                 .fontSize(14)
-                .fontColor('rgba(255,255,255,0.8)')
+                .fontColor('rgba(255,255,255,0.9)')
               Text(`${this.totalSteps}`)
                 .fontSize(24)
                 .fontWeight(FontWeight.Medium)
@@ -111,49 +111,59 @@ struct StepsPage {
             .alignItems(HorizontalAlign.End)
           }
           .width('100%')
-          .padding({ left: 24, right: 24, bottom: 30 })
+          .padding({ left: 24, right: 24, bottom: 36 })
         }
         .width('100%')
         .linearGradient({
           angle: 135,
-          colors: [['#FF9A9E', 0.0], ['#FECFEF', 1.0]] // 暖色调渐变
+          colors: [['#FF7E5F', 0.0], ['#FEB47B', 1.0]] // 暖色调：日落橙
         })
-        .borderRadius({ bottomLeft: 30, bottomRight: 30 })
-        .shadow({ radius: 20, color: 'rgba(255, 154, 158, 0.4)', offsetY: 10 })
+        .borderRadius({ bottomLeft: 32, bottomRight: 32 })
+        .shadow({ radius: 20, color: 'rgba(255, 126, 95, 0.3)', offsetY: 10 })
 
-        // 2. 图表区域 (上浮卡片)
+        // 2. 图表区域
         Column() {
           Text('近期活动记录')
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
             .fontColor('#333')
             .width('100%')
-            .padding({ left: 20, top: 20 })
+            .padding({ left: 24, top: 24, bottom: 10 })
           
           if (this.stepsData.length > 0) {
-            List({ space: 12 }) {
+            List({ space: 14 }) {
               ForEach(this.stepsData, (item: HealthData) => {
                 ListItem() {
                   Column() {
-                    // 柱子
-                    Column()
-                      .width(12)
-                      .height(this.getBarHeight(item.steps))
-                      .linearGradient({
-                        angle: 180,
-                        colors: item.steps >= this.avgSteps 
-                          ? [['#FF9A9E', 0.0], ['#FECFEF', 1.0]] 
-                          : [['#E0E0E0', 0.0], ['#F5F5F5', 1.0]]
-                      })
-                      .borderRadius(6)
+                    // 柱子背景槽
+                    Stack({ alignContent: Alignment.Bottom }) {
+                      Column()
+                        .width(8)
+                        .height(150)
+                        .backgroundColor('#F0F0F0')
+                        .borderRadius(4)
+                      
+                      // 实际柱子
+                      Column()
+                        .width(8)
+                        .height(this.getBarHeight(item.steps))
+                        .linearGradient({
+                          angle: 180,
+                          colors: item.steps >= this.avgSteps 
+                            ? [['#FF7E5F', 0.0], ['#FEB47B', 1.0]] 
+                            : [['#BDC3C7', 0.0], ['#E0E0E0', 1.0]]
+                        })
+                        .borderRadius(4)
+                        .shadow({ radius: 4, color: 'rgba(255, 126, 95, 0.2)', offsetY: 2 })
+                    }
                     
                     // 数值
                     Text(`${item.steps}`)
                       .fontSize(10)
                       .fontColor('#999')
-                      .margin({ top: 6 })
+                      .margin({ top: 8 })
 
-                    // 修改：显示日期 (MM-dd)
+                    // 日期
                     Text(`${(new Date(item.timestamp).getMonth() + 1).toString().padStart(2, '0')}-${new Date(item.timestamp).getDate().toString().padStart(2, '0')}`)
                       .fontSize(10)
                       .fontColor('#CCC')
@@ -171,29 +181,22 @@ struct StepsPage {
             .alignListItem(ListItemAlign.End)
           } else {
             Column() {
-              Image($r('app.media.startIcon'))
-                .width(80)
-                .height(80)
-                .opacity(0.2)
-                .grayscale(1)
-              Text('暂无数据')
-                .fontSize(14)
-                .fontColor('#CCC')
-                .margin({ top: 10 })
+              Image($r('app.media.startIcon')).width(60).height(60).opacity(0.1).grayscale(1)
+              Text('暂无数据').fontSize(14).fontColor('#CCC').margin({ top: 10 })
             }
             .height(200)
             .justifyContent(FlexAlign.Center)
           }
         }
-        .width('90%')
+        .width('92%')
         .backgroundColor('#FFFFFF')
         .borderRadius(24)
-        .shadow({ radius: 30, color: 'rgba(0,0,0,0.05)', offsetY: 10 })
-        .margin({ top: -20 }) // 负边距，实现卡片上浮效果
+        .shadow({ radius: 30, color: 'rgba(0,0,0,0.06)', offsetY: 12 })
+        .margin({ top: -24 })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#F9FAFB')
+      .backgroundColor('#F8F9FB')
     }
   }
 }

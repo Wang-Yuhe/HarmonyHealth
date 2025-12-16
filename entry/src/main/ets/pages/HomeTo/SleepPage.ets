@@ -6,7 +6,7 @@ import { SleepData } from '../../common/model/SleepData';
 @Component
 struct SleepPage {
   @State sleepData: SleepData[] = [];
-  @State maxDuration: number = 600; // Default max 10 hours (600 mins) for scaling
+  @State maxDuration: number = 600;
   @State avgSleepTime: string = '0.0';
   @State deepSleepRatio: string = '0%';
 
@@ -32,18 +32,14 @@ struct SleepPage {
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
       Column() {
-        // 1. 顶部 Hero Card (深蓝夜空渐变)
+        // 1. 顶部 Hero Card (午夜蓝渐变)
         Column() {
-          // 使用 Stack 将 BackButton 整合进标题栏，防止遮挡
           Stack({ alignContent: Alignment.Center }) {
             Text('睡眠分析')
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
               .fontColor('#FFFFFF')
-
-            Row() {
-              BackButton()
-            }
+            Row() { BackButton() }
             .width('100%')
             .justifyContent(FlexAlign.Start)
             .padding({ left: 16 })
@@ -56,19 +52,19 @@ struct SleepPage {
             Column() {
               Text('平均睡眠')
                 .fontSize(14)
-                .fontColor('rgba(255,255,255,0.7)')
+                .fontColor('rgba(255,255,255,0.8)')
               Row() {
                 Text(this.avgSleepTime)
-                  .fontSize(36)
+                  .fontSize(40)
                   .fontWeight(FontWeight.Bold)
                   .fontColor('#FFFFFF')
                 Text(' h')
-                  .fontSize(18)
+                  .fontSize(20)
                   .fontColor('rgba(255,255,255,0.9)')
                   .margin({ bottom: 6 })
               }
               .alignItems(VerticalAlign.Bottom)
-              .margin({ top: 8 })
+              .margin({ top: 4 })
             }
             .alignItems(HorizontalAlign.Start)
             
@@ -77,25 +73,25 @@ struct SleepPage {
             Column() {
               Text('深睡占比')
                 .fontSize(14)
-                .fontColor('rgba(255,255,255,0.7)')
+                .fontColor('rgba(255,255,255,0.8)')
               Text(this.deepSleepRatio)
                 .fontSize(24)
                 .fontWeight(FontWeight.Medium)
-                .fontColor('#81D4FA') // 亮蓝色高亮
+                .fontColor('#64B5F6') // 亮蓝色高亮
                 .margin({ top: 12 })
             }
             .alignItems(HorizontalAlign.End)
           }
           .width('100%')
-          .padding({ left: 24, right: 24, bottom: 30 })
+          .padding({ left: 24, right: 24, bottom: 36 })
         }
         .width('100%')
         .linearGradient({
           angle: 180,
-          colors: [['#1A237E', 0.0], ['#3949AB', 1.0]] // 深蓝渐变
+          colors: [['#283593', 0.0], ['#3F51B5', 1.0]] // 深蓝 -> 靛蓝
         })
-        .borderRadius({ bottomLeft: 30, bottomRight: 30 })
-        .shadow({ radius: 20, color: 'rgba(26, 35, 126, 0.4)', offsetY: 10 })
+        .borderRadius({ bottomLeft: 32, bottomRight: 32 })
+        .shadow({ radius: 20, color: 'rgba(40, 53, 147, 0.3)', offsetY: 10 })
 
         // 2. 图表区域
         Column() {
@@ -105,38 +101,38 @@ struct SleepPage {
               .fontWeight(FontWeight.Bold)
               .fontColor('#333')
             Blank()
-            Row({ space: 8 }) {
-              this.LegendItem('#304FFE', '深睡')
-              this.LegendItem('#8C9EFF', '浅睡')
-              this.LegendItem('#FFAB91', '清醒')
+            Row({ space: 12 }) {
+              this.LegendItem('#3949AB', '深睡')
+              this.LegendItem('#7986CB', '浅睡')
+              this.LegendItem('#FFCC80', '清醒')
             }
           }
           .width('100%')
-          .padding({ left: 20, right: 20, top: 20 })
+          .padding({ left: 24, right: 24, top: 24 })
 
           if (this.sleepData.length > 0) {
-            List({ space: 15 }) {
+            List({ space: 16 }) {
               ForEach(this.sleepData, (item: SleepData) => {
                 ListItem() {
                   Column() {
                     // 堆叠柱状图
                     Column() {
                       if (item.awakeMinutes > 0) {
-                        Column().width(12).height(this.getHeight(item.awakeMinutes))
-                          .backgroundColor('#FFAB91').borderRadius({ topLeft: 6, topRight: 6 })
+                        Column().width(10).height(this.getHeight(item.awakeMinutes))
+                          .backgroundColor('#FFCC80').borderRadius({ topLeft: 5, topRight: 5 })
                       }
                       if (item.lightSleepMinutes > 0) {
-                        Column().width(12).height(this.getHeight(item.lightSleepMinutes))
-                          .backgroundColor('#8C9EFF')
-                          .borderRadius(item.awakeMinutes === 0 ? { topLeft: 6, topRight: 6 } : 0)
+                        Column().width(10).height(this.getHeight(item.lightSleepMinutes))
+                          .backgroundColor('#7986CB')
+                          .borderRadius(item.awakeMinutes === 0 ? { topLeft: 5, topRight: 5 } : 0)
                       }
                       if (item.deepSleepMinutes > 0) {
-                        Column().width(12).height(this.getHeight(item.deepSleepMinutes))
-                          .backgroundColor('#304FFE')
+                        Column().width(10).height(this.getHeight(item.deepSleepMinutes))
+                          .backgroundColor('#3949AB')
                           .borderRadius({ 
-                            topLeft: (item.awakeMinutes === 0 && item.lightSleepMinutes === 0) ? 6 : 0, 
-                            topRight: (item.awakeMinutes === 0 && item.lightSleepMinutes === 0) ? 6 : 0,
-                            bottomLeft: 6, bottomRight: 6 
+                            topLeft: (item.awakeMinutes === 0 && item.lightSleepMinutes === 0) ? 5 : 0, 
+                            topRight: (item.awakeMinutes === 0 && item.lightSleepMinutes === 0) ? 5 : 0,
+                            bottomLeft: 5, bottomRight: 5 
                           })
                       }
                     }
@@ -159,31 +155,30 @@ struct SleepPage {
             .alignListItem(ListItemAlign.Center)
           } else {
             Column() {
-              Image($r('app.media.startIcon'))
-                .width(80).height(80).opacity(0.2).grayscale(1)
+              Image($r('app.media.startIcon')).width(60).height(60).opacity(0.1).grayscale(1)
               Text('暂无数据').fontSize(14).fontColor('#CCC').margin({ top: 10 })
             }
             .height(200)
             .justifyContent(FlexAlign.Center)
           }
         }
-        .width('90%')
+        .width('92%')
         .backgroundColor('#FFFFFF')
         .borderRadius(24)
-        .shadow({ radius: 30, color: 'rgba(0,0,0,0.05)', offsetY: 10 })
-        .margin({ top: -20 })
+        .shadow({ radius: 30, color: 'rgba(0,0,0,0.06)', offsetY: 12 })
+        .margin({ top: -24 })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#F5F7FA')
+      .backgroundColor('#F8F9FB')
     }
   }
 
   @Builder
   LegendItem(color: string, label: string) {
     Row() {
-      Circle({ width: 8, height: 8 }).fill(color).margin({ right: 4 })
-      Text(label).fontSize(10).fontColor('#666')
+      Circle({ width: 8, height: 8 }).fill(color).margin({ right: 6 })
+      Text(label).fontSize(11).fontColor('#666')
     }
   }
 }
