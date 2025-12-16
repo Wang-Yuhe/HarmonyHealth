@@ -25,7 +25,7 @@ struct HealthItemComponent {
           Circle({ width: 36, height: 36 })
             .fill(this.themeColor)
             .opacity(0.15)
-          
+
           Image(this.icon)
             .width(20)
             .height(20)
@@ -48,7 +48,7 @@ struct HealthItemComponent {
           .fontSize(24) // 加大数值字体
           .fontWeight(FontWeight.Bold)
           .fontColor('#333')
-        
+
         if (this.unit) {
           Text(this.unit)
             .fontSize(12)
@@ -93,7 +93,7 @@ struct HomePage {
 
   private lerpColor(color1: string, color2: string, t: number): string {
     // 简化的颜色插值，实际项目中建议使用更严谨的算法
-    return t > 0.5 ? color2 : color1; 
+    return t > 0.5 ? color2 : color1;
   }
 
   private getStepColor(steps: number): string {
@@ -102,6 +102,40 @@ struct HomePage {
 
   private getSleepColor(hours: number): string {
     return hours >= this.SLEEP_GOAL ? '#448AFF' : '#FFD740';
+  }
+
+  /**
+   * 退出登录逻辑
+   * 使用 ActionSheet 提供底部弹出选择
+   */
+  private handleLogout(): void {
+    AlertDialog.show({
+      title: '退出登录',
+      message: '确定要退出当前登录吗？',
+      autoCancel: true,
+      alignment: DialogAlignment.Bottom, // 依然可以从底部弹出
+      gridCount: 4,
+      primaryButton: {
+        value: '取消',
+        action: () => {
+          console.info('用户取消退出')
+        }
+      },
+      secondaryButton: {
+        value: '退出登录',
+        fontColor: Color.Red, // 这里支持 fontColor
+        action: () => {
+          this.executeLogoutAction()
+        }
+      }
+    })
+  }
+
+  private executeLogoutAction(): void {
+    AppStorage.SetOrCreate('isLogin', false);
+    this.getUIContext().getRouter().replaceUrl({
+      url: 'pages/LoginPage'
+    })
   }
 
   async aboutToAppear() {
@@ -161,13 +195,14 @@ struct HomePage {
           .alignItems(HorizontalAlign.Start)
 
           Blank()
-          
-          Image($r('app.media.profileIcon'))
-            .width(44)
-            .height(44)
-            .borderRadius(22)
-            .border({ width: 2, color: '#FFFFFF' })
-            .shadow({ radius: 8, color: 'rgba(0,0,0,0.1)', offsetY: 2 })
+
+          Image($r('app.media.logout'))
+            .width(35)
+            .height(35)
+            .objectFit(ImageFit.Cover)
+            .onClick(() => {
+              this.handleLogout()
+            })
         }
         .width('100%')
         .padding({ left: 24, right: 24, top: 20, bottom: 10 })
@@ -176,12 +211,12 @@ struct HomePage {
           Column({ space: 16 }) {
             // 人体模型卡片
             Column() {
-              Image($r('app.media.body'))
+              Image($r('app.media.body2'))
                 .height(200)
                 .objectFit(ImageFit.Contain)
                 .margin({ bottom: 10 })
-              
-              Text('点击查看身体详细数据 >')
+
+              Text('点击查看尺码档案 >')
                 .fontSize(14)
                 .fontColor('#5C7CFF')
                 .fontWeight(FontWeight.Medium)
@@ -227,7 +262,7 @@ struct HomePage {
               unit: '心率 / 血氧',
               themeColor: '#5C7CFF',
               pageName: 'features/healthStatus/view/StatusPage',
-              icon: $r('app.media.startIcon')
+              icon: $r('app.media.instantcheck')
             })
 
             // 疾病历史

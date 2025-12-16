@@ -60,7 +60,7 @@ export struct ExploreView {
           .fontColor(COLOR_TEXT_MAIN)
         Blank()
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($r('app.media.startIcon')) // Placeholder for refresh icon
+          Image($r('app.media.update')) // Placeholder for refresh icon
             .width(24)
             .height(24)
             .fillColor(COLOR_PRIMARY)
@@ -204,7 +204,7 @@ export struct ExploreView {
     if (isLoading) {
       LoadingProgress().width(20).height(20).color(COLOR_PRIMARY)
     } else {
-      Image($r('app.media.startIcon')) // Replace with refresh icon
+      Image($r('app.media.update')) // Replace with refresh icon
         .width(20)
         .height(20)
         .fillColor(COLOR_TEXT_SUB)
@@ -244,7 +244,7 @@ export struct ExploreView {
         .width('100%')
       
       Stack() {
-        Image($r('app.media.startIcon')) // Background pattern or gradient
+        Image($r('app.media.inspiration')) // Background pattern or gradient
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
