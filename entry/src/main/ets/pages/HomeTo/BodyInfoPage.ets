@@ -32,10 +32,10 @@ struct BodyInfoPage {
   // 使用 @StorageLink 实现自动同步和 UI 刷新
   @StorageLink('BodyInfoList') bodyInfoList: BodyInfoItem[] = []
   private sections: BodyInfoSection[] = [
-    { title: '基础', keys: ['性别', '身高', '体重'] },
-    { title: '上身', keys: ['头围', '肩宽', '胸围'] },
-    { title: '下身', keys: ['腰围', '臀围', '腿长'] },
-    { title: '脚部', keys: ['常穿鞋码', '脚长', '脚宽'] }
+    { title: '基础数据', keys: ['性别', '身高', '体重'] },
+    { title: '上身围度', keys: ['头围', '肩宽', '胸围'] },
+    { title: '下身围度', keys: ['腰围', '臀围', '腿长'] },
+    { title: '足部数据', keys: ['常穿鞋码', '脚长', '脚宽'] }
   ]
   @State private editingKey: string = ''
   @State private editValue: string = ''
@@ -53,6 +53,29 @@ struct BodyInfoPage {
     return item ?? { label: key, value: '--' }
   }
 
+  // 计算 BMI
+  private getBMI(): string {
+    const hStr = this.getItemByKey('身高').value;
+    const wStr = this.getItemByKey('体重').value;
+    const h = parseFloat(hStr);
+    const w = parseFloat(wStr);
+    if (!isNaN(h) && !isNaN(w) && h > 0) {
+      // 身高单位换算 cm -> m
+      return (w / ((h / 100) * (h / 100))).toFixed(1);
+    }
+    return '--';
+  }
+
+  // 获取 BMI 状态
+  private getBMIStatus(): string {
+    const bmi = parseFloat(this.getBMI());
+    if (isNaN(bmi)) return '未知';
+    if (bmi < 18.5) return '偏瘦';
+    if (bmi < 24) return '正常';
+    if (bmi < 28) return '超重';
+    return '肥胖';
+  }
+
   private startEdit(item: BodyInfoItem): void {
     this.editingKey = item.label
     this.editValue = item.value
@@ -64,15 +87,12 @@ struct BodyInfoPage {
   }
 
   private saveEdit(label: string): void {
-    // 关键点：通过 map 创建新对象并替换数组中的元素
-    // 这会触发 @StorageLink 的 Setter，进而通知所有关联组件
     this.bodyInfoList = this.bodyInfoList.map(item => {
       if (item.label === label) {
         return { label: item.label, value: this.editValue }
       }
       return item
     })
-
     this.cancelEdit()
   }
 
@@ -82,24 +102,30 @@ struct BodyInfoPage {
     Column() {
       TextInput({
         text: this.editValue,
-        placeholder: '请输入新数值'
+        placeholder: '请输入数值'
       })
         .onChange((v: string) => this.editValue = v)
-        .height(45)
+        .height(44)
         .width('100%')
-        .backgroundColor('#F1F3F5')
-        .borderRadius(8)
+        .backgroundColor('#FFFFFF')
+        .border({ width: 1, color: '#E0E0E0', radius: 8 })
+        .padding({ left: 12 })
 
       Row({ space: 12 }) {
         Button('取消')
           .fontSize(14)
-          .fontColor(Color.Gray)
-          .backgroundColor(Color.Transparent)
+          .fontColor('#666')
+          .backgroundColor('#F5F5F5')
+          .width(70)
+          .height(32)
           .onClick(() => this.cancelEdit())
 
         Button('保存')
           .fontSize(14)
+          .fontColor(Color.White)
           .backgroundColor('#007DFF')
+          .width(70)
+          .height(32)
           .onClick(() => this.saveEdit(item.label))
       }
       .justifyContent(FlexAlign.End)
@@ -107,90 +133,161 @@ struct BodyInfoPage {
       .margin({ top: 12 })
     }
     .padding(12)
-    .backgroundColor('#F9F9F9')
+    .backgroundColor('#F9FAFB')
     .borderRadius(8)
-    .margin({ top: 10, bottom: 10 })
+    .margin({ top: 8, bottom: 8 })
   }
 
   @Builder
-  private buildInfoItem(item: BodyInfoItem) {
+  private buildInfoItem(item: BodyInfoItem, isLast: boolean) {
     Column() {
       Row() {
         Text(item.label)
           .fontSize(16)
-          .fontColor('#666')
+          .fontColor('#333')
+          .fontWeight(FontWeight.Medium)
 
         Row() {
           Text(item.value)
             .fontSize(16)
-            .margin({ right: 10 })
-          Image($r('app.media.alter')) // 使用现有图标替代
-            .width(20)
-            .height(20)
+            .fontColor('#666')
+            .margin({ right: 8 })
+          
+          Image($r('app.media.alter')) 
+            .width(18)
+            .height(18)
             .fillColor('#007DFF')
-            .onClick(() => this.startEdit(item))
+            .opacity(0.6)
         }
+        .onClick(() => this.startEdit(item))
       }
       .width('100%')
-      .height(50)
+      .height(56)
       .justifyContent(FlexAlign.SpaceBetween)
+      .alignItems(VerticalAlign.Center)
 
       if (this.editingKey === item.label) {
         this.buildEditArea(item)
       }
 
-      Divider()
-        .color('#EEE')
-        .strokeWidth(1)
+      // 只有非最后一行且不在编辑状态时显示分割线
+      if (!isLast && this.editingKey !== item.label) {
+        Divider()
+          .color('#F5F5F5')
+          .strokeWidth(1)
+      }
     }
     .width('100%')
+    .padding({ left: 16, right: 16 })
   }
 
   // ---------- 页面主结构 ----------
   build() {
-    Column() {
-      // 自定义顶部栏（代替原有的 Stack + BackButton 逻辑，提升布局稳定性）
-      Row() {
-        BackButton()
-        Text('身体档案')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .margin({ left: 8 })
-          .lineHeight(48)
+    Stack({ alignContent: Alignment.TopStart }) {
+      Column() {
+        // 1. 顶部 Hero Header (蓝色渐变 + BMI 卡片)
+        Column() {
+          // 标题栏 (使用 Stack 防止 BackButton 遮挡)
+          Stack({ alignContent: Alignment.Center }) {
+            Text('身体档案')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+            
+            Row() {
+              BackButton()
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.Start)
+            .padding({ left: 16 })
+          }
+          .height(56)
+          .width('100%')
+          .margin({ top: 10 })
+
+          // BMI 概览卡片
+          Row() {
+            Column() {
+              Text('BMI 指数')
+                .fontSize(14)
+                .fontColor('rgba(255,255,255,0.8)')
+              Text(this.getBMI())
+                .fontSize(36)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(Color.White)
+                .margin({ top: 4 })
+            }
+            .alignItems(HorizontalAlign.Start)
+
+            Blank()
+
+            Column() {
+              Text('体型评估')
+                .fontSize(14)
+                .fontColor('rgba(255,255,255,0.8)')
+              Text(this.getBMIStatus())
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(Color.White)
+                .margin({ top: 12 })
+                .backgroundColor('rgba(255,255,255,0.2)')
+                .padding({ left: 12, right: 12, top: 4, bottom: 4 })
+                .borderRadius(16)
+            }
+            .alignItems(HorizontalAlign.End)
+          }
+          .width('100%')
+          .padding({ left: 24, right: 24, bottom: 24, top: 10 })
+        }
+        .linearGradient({
+          angle: 180,
+          colors: [['#448AFF', 0.0], ['#5C7CFF', 1.0]]
+        })
+        .borderRadius({ bottomLeft: 24, bottomRight: 24 })
+        .shadow({ radius: 10, color: 'rgba(68, 138, 255, 0.3)', offsetY: 5 })
+        .zIndex(1)
+
+        // 2. 列表内容
+        Scroll() {
+          Column() {
+            ForEach(this.sections, (section: BodyInfoSection) => {
+              Column() {
+                // 分组标题
+                Row() {
+                  Text(section.title)
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor('#007DFF')
+                  Blank()
+                }
+                .width('100%')
+                .padding({ left: 4, bottom: 8, top: 20 })
+
+                // 分组卡片
+                Column() {
+                  ForEach(section.keys, (key: string, index: number) => {
+                    this.buildInfoItem(this.getItemByKey(key), index === section.keys.length - 1)
+                  }, (key: string) => key + this.getItemByKey(key).value)
+                }
+                .backgroundColor(Color.White)
+                .borderRadius(16)
+                .shadow({ radius: 15, color: 'rgba(0,0,0,0.05)', offsetY: 2 })
+              }
+            })
+            
+            // 底部留白
+            Blank().height(40)
+          }
+          .padding({ left: 16, right: 16 })
+        }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+        .margin({ top: 10 })
       }
       .width('100%')
-      .padding({ left: 16, top: 16, bottom: 8 })
-      .backgroundColor(Color.White)
-
-      Scroll() {
-        Column() {
-          ForEach(this.sections, (section: BodyInfoSection) => {
-            Column() {
-              Text(section.title)
-                .fontSize(14)
-                .fontColor('#999')
-                .width('100%')
-                .margin({ top: 20, bottom: 8 })
-
-              Column() {
-                ForEach(section.keys, (key: string) => {
-                  // 注意：这里 getItemByKey 会从 @StorageLink 实时取值
-                  this.buildInfoItem(this.getItemByKey(key))
-                }, (key: string) => {
-                  // 这里的 key 必须包含 value 才能在数据改变时强制刷新该项 ForEach
-                  return key + this.getItemByKey(key).value
-                })
-              }
-              .backgroundColor(Color.White)
-              .borderRadius(12)
-              .padding({ left: 12, right: 12 })
-            }
-          })
-        }
-        .padding({ left: 16, right: 16, bottom: 40 })
-      }
-      .layoutWeight(1)
-      .edgeEffect(EdgeEffect.Spring)
+      .height('100%')
+      .backgroundColor('#F1F3F5')
     }
     .width('100%')
     .height('100%')
