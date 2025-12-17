@@ -73,10 +73,10 @@ export class ExploreAIService {
       STORAGE_KEY_GREETING,
       forceRefresh,
       `
-      Generate a greeting and a daily quote for a health app user.
+      生成一句精简的问候（不超过20个汉字）和一句简短的每日灵感（不超过40个汉字）。
+      输出 JSON：{ "greeting": "...", "dailyQuote": "..." }，只返回 JSON 内容，不带额外说明。
       User Context: ${userData.userContext}
-      Output JSON: { "greeting": "...", "dailyQuote": "..." }
-      Language: Simplified Chinese.
+      Language: 简体中文。
       `
     );
   }

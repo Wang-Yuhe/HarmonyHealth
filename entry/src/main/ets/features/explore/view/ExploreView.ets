@@ -60,7 +60,7 @@ export struct ExploreView {
           .fontColor(COLOR_TEXT_MAIN)
         Blank()
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($r('app.media.update')) // Placeholder for refresh icon
+          Image($r('app.media.startIcon')) // Placeholder for refresh icon
             .width(24)
             .height(24)
             .fillColor(COLOR_PRIMARY)
@@ -87,9 +87,12 @@ export struct ExploreView {
             this.SectionError(() => { this.vm.refreshGreeting() })
           }
 
+          // 1.5 Banner Swiper
+          this.BannerSwiper()
+
           // 2. Diet Plan
           Row() {
-            Text("营养计划").sectionTitle()
+            this.SectionHeader("营养计划")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshDiet() }, this.isDietLoading)
           }.width('100%').padding({ right: 20 })
@@ -116,7 +119,7 @@ export struct ExploreView {
 
           // 3. Exercise Plan
           Row() {
-            Text("运动建议").sectionTitle()
+            this.SectionHeader("运动建议")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshExercise() }, this.isExerciseLoading)
           }.width('100%').padding({ right: 20 })
@@ -143,7 +146,7 @@ export struct ExploreView {
 
           // 4. Schedule
           Row() {
-            Text("每日流程").sectionTitle()
+            this.SectionHeader("每日流程")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshSchedule() }, this.isScheduleLoading)
           }.width('100%').padding({ right: 20 })
@@ -163,7 +166,7 @@ export struct ExploreView {
 
           // 5. Tips
           Row() {
-            Text("健康小贴士").sectionTitle()
+            this.SectionHeader("健康小贴士")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshTips() }, this.isTipsLoading)
           }.width('100%').padding({ right: 20 })
@@ -197,6 +200,65 @@ export struct ExploreView {
     .width('100%')
     .height('100%')
     .backgroundColor(COLOR_BG)
+  }
+
+  @Builder
+  SectionHeader(title: string): void {
+    Row() {
+      Text(title)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(COLOR_TEXT_MAIN)
+    }
+    .padding({ left: 20, top: 20, bottom: 10 })
+  }
+
+  @Builder
+  BannerSwiper(): void {
+    Swiper() {
+      this.BannerItem("7天瑜伽挑战", "开始你的柔韧之旅", '#6C5CE7')
+      this.BannerItem("健康饮食指南", "吃出好身材", '#00B894')
+      this.BannerItem("改善睡眠质量", "拥有深度睡眠", '#FD79A8')
+    }
+    .autoPlay(true)
+    .interval(5000)
+    .height(140)
+    .itemSpace(15)
+    .margin({ left: 20, right: 20, top: 10, bottom: 10 })
+    .borderRadius(16)
+    .indicator(true)
+  }
+
+  @Builder
+  BannerItem(title: string, subtitle: string, color: string): void {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(color)
+        .borderRadius(16)
+        .opacity(0.9)
+      
+      Column() {
+        Text(title)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
+          .margin({ bottom: 8 })
+        
+        Text(subtitle)
+          .fontSize(14)
+          .fontColor(Color.White)
+          .opacity(0.9)
+      }
+      .width('100%')
+      .height('100%')
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Start)
+      .padding(24)
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -419,10 +481,4 @@ export struct ExploreView {
 }
 
 // --- Styles Extension ---
-@Extend(Text) function sectionTitle() {
-  .fontSize(18)
-  .fontWeight(FontWeight.Bold)
-  .fontColor(COLOR_TEXT_MAIN)
-  .width('100%')
-  .padding({ left: 20, top: 20, bottom: 10 })
-}
+// Removed sectionTitle extension as it is replaced by SectionHeader builder
