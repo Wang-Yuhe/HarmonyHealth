@@ -1,6 +1,6 @@
 /**
  * @file HomePage.ets
- * @description 应用主界面（UI 优化版 - 视觉增强）
+ * @description 应用主界面（UI 优化版 - 修复玻璃拟态边框颜色格式 #AARRGGBB）
  */
 import { myNavigator } from '../common/components/Navigator';
 import { HealthVM } from '../features/healthStatus/viewmodel/HealthVM';
@@ -18,69 +18,87 @@ struct HealthItemComponent {
   @Prop icon: ResourceStr = $r('app.media.startIcon');
 
   build() {
-    Column() {
-      // 1. 头部：图标 + 标题
-      Row() {
-        Stack({ alignContent: Alignment.Center }) {
-          Circle({ width: 38, height: 38 })
-            .fill(this.themeColor)
-            .opacity(0.1) // 更淡的背景，显得更高级
+    // 使用 Stack 增加内部装饰层，营造科技层次感
+    Stack({ alignContent: Alignment.TopEnd }) {
+      // 1. 装饰背景：右上角的半透明大圆环
+      Circle({ width: 80, height: 80 })
+        .fill('transparent')
+        .stroke(this.themeColor)
+        .strokeWidth(12)
+        .opacity(0.05) // 极淡的装饰
+        .margin({ top: -20, right: -20 })
+        .blur(10) // 模糊处理，融入背景
+
+      // 2. 主要内容
+      Column() {
+        // 头部：图标 + 标题
+        Row() {
+          Stack({ alignContent: Alignment.Center }) {
+            // 图标底色光晕
+            Circle({ width: 32, height: 32 })
+              .fill(this.themeColor)
+              .opacity(0.15)
+            
+            Image(this.icon)
+              .width(16)
+              .height(16)
+              .fillColor(this.themeColor) 
+              .objectFit(ImageFit.Contain)
+          }
+          .margin({ right: 10 })
+
+          Text(this.title)
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#666')
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .margin({ bottom: 12 })
+
+        // 数值显示
+        Row() {
+          Text(this.value)
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#2C3E50') // 深蓝灰，比纯黑更有质感
           
-          Image(this.icon)
-            .width(20)
-            .height(20)
-            .fillColor(this.themeColor) // 图标跟随主题色
-            .objectFit(ImageFit.Contain)
+          if (this.unit) {
+            Text(this.unit)
+              .fontSize(11)
+              .fontColor('#999')
+              .margin({ left: 4, bottom: 4 })
+          }
         }
-        .margin({ right: 12 })
-
-        Text(this.title)
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#666')
+        .width('100%')
+        .alignItems(VerticalAlign.Bottom)
       }
+      .padding(18)
       .width('100%')
-      .alignItems(VerticalAlign.Center)
-      .margin({ bottom: 16 })
-
-      // 2. 数值显示
-      Row() {
-        Text(this.value)
-          .fontSize(26) // 加大数值字体
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#333')
-        
-        if (this.unit) {
-          Text(this.unit)
-            .fontSize(12)
-            .fontColor('#999')
-            .margin({ left: 6, bottom: 5 })
-        }
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Bottom)
-
-      // 3. 底部装饰条 (改为渐变条)
-      Row()
-        .width('30%')
-        .height(4)
-        .linearGradient({
-          angle: 90,
-          colors: [[this.themeColor, 0.0], ['#FFFFFF', 1.0]]
-        })
-        .borderRadius(2)
-        .margin({ top: 12 })
+      .borderRadius(24)
+      // 优化：大幅降低背景不透明度，增强玻璃通透感
+      .linearGradient({
+        angle: 135,
+        colors: [['rgba(255, 255, 255, 0.6)', 0.0], ['rgba(255, 255, 255, 0.4)', 1.0]]
+      })
+      // 优化：增加模糊度，使透出的背景更柔和
+      .backdropBlur(20) 
+      
+      // 优化：边框透明度提升至 60% (#99)，让边缘反光更明显
+      .border({ 
+        width: 1.5, 
+        color: this.themeColor.startsWith('#') ? ('#99' + this.themeColor.substring(1)) : this.themeColor 
+      }) 
+      // 优化：阴影透明度提升至 15% (#26)，增强悬浮高度感
+      .shadow({ 
+        radius: 25, 
+        color: this.themeColor.startsWith('#') ? ('#26' + this.themeColor.substring(1)) : '#26000000', 
+        offsetY: 10 
+      })
+      .onClick(() => {
+        this.getUIContext().getRouter().pushUrl({ url: this.pageName })
+      })
     }
-    .padding(18)
-    .borderRadius(24)
-    .backgroundColor('#FFFFFF')
-    // 更柔和、扩散范围更大的阴影
-    .shadow({ radius: 25, color: 'rgba(0,0,0,0.06)', offsetY: 8 }) 
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-    .onClick(() => {
-      this.getUIContext().getRouter().pushUrl({ url: this.pageName })
-    })
   }
 }
 
@@ -95,7 +113,7 @@ struct HomePage {
   private SLEEP_GOAL: number = 8;
 
   private getStepColor(steps: number): string {
-    return steps >= this.STEP_GOAL ? '#00C853' : '#FF7043'; // 调整为更具活力的橙色
+    return steps >= this.STEP_GOAL ? '#00C853' : '#FF7043'; 
   }
 
   private getSleepColor(hours: number): string {
@@ -147,14 +165,38 @@ struct HomePage {
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      // 1. 背景层
-      Column()
-        .width('100%')
-        .height('100%')
-        .linearGradient({
-          angle: 180,
-          colors: [['#F0F4FF', 0.0], ['#F7F9FC', 0.6], ['#FFFFFF', 1.0]]
-        })
+      // 1. 背景层 (科技感光影氛围)
+      Stack() {
+        // 基础底色 - 极淡的冷灰蓝
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor('#F2F5F9') 
+
+        // 装饰光球 1 (左上 - 科技蓝)
+        Circle({ width: 280, height: 280 })
+          .fill('#4A90E2')
+          .opacity(0.08)
+          .position({ x: -80, y: -80 })
+          .blur(60)
+
+        // 装饰光球 2 (右中 - 活力紫)
+        Circle({ width: 220, height: 220 })
+          .fill('#9B59B6')
+          .opacity(0.06)
+          .position({ x: '70%', y: '25%' })
+          .blur(50)
+          
+        // 装饰光球 3 (左下 - 清新绿)
+        Circle({ width: 260, height: 260 })
+          .fill('#2ECC71')
+          .opacity(0.05)
+          .position({ x: -60, y: '65%' })
+          .blur(70)
+      }
+      .width('100%')
+      .height('100%')
+      .zIndex(0)
 
       // 2. 主内容区域
       Column() {
@@ -164,52 +206,104 @@ struct HomePage {
             Text('Harmony Health')
               .fontSize(26)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#222')
+              .fontColor('#2C3E50')
             Text('您的智能健康管家')
-              .fontSize(14)
-              .fontColor('#888')
+              .fontSize(13)
+              .fontColor('#8899A6') // 更高级的灰色
               .margin({ top: 4 })
+              .letterSpacing(1)
           }
           .alignItems(HorizontalAlign.Start)
 
           Blank()
 
-          Image($r('app.media.logout'))
-            .width(28)
-            .height(28)
-            .fillColor('#666')
-            .objectFit(ImageFit.Contain)
-            .onClick(() => { this.handleLogout() })
+          // 退出按钮 - 悬浮玻璃质感
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            Image($r('app.media.logout'))
+              .width(20)
+              .height(20)
+              .fillColor('#5C7CFF') 
+          }
+          .width(42)
+          .height(42)
+          .backgroundColor('rgba(255,255,255,0.8)')
+          .backdropBlur(10)
+          .shadow({ radius: 10, color: 'rgba(92, 124, 255, 0.2)', offsetY: 4 }) 
+          .onClick(() => { this.handleLogout() })
         }
         .width('100%')
         .padding({ left: 24, right: 24, top: 20, bottom: 10 })
 
         Scroll() {
-          Column({ space: 16 }) {
-            // 人体模型卡片
-            Column() {
-              Image($r('app.media.body2'))
-                .height(180)
-                .objectFit(ImageFit.Contain)
-                .margin({ bottom: 16 })
+          Column({ space: 16 }) { 
+            // 人体模型卡片 - Hero Card (特殊样式)
+            Stack({ alignContent: Alignment.TopStart }) {
+              // 背景装饰
+              Circle({ width: 140, height: 140 })
+                .fill('#5C7CFF')
+                .opacity(0.06)
+                .position({ x: '60%', y: -30 })
+                .blur(20)
 
-              Row() {
-                Text('查看尺码档案')
-                  .fontSize(15)
-                  .fontColor('#5C7CFF')
-                  .fontWeight(FontWeight.Medium)
-                Image($r('app.media.startIcon')) // 箭头图标
-                  .width(12)
-                  .height(12)
-                  .fillColor('#5C7CFF')
-                  .margin({ left: 4 })
+              Column() {
+                Image($r('app.media.body2'))
+                  .height(170)
+                  .objectFit(ImageFit.Contain)
+                  .margin({ bottom: 16 })
+                  // 图片增加投影，产生悬浮感
+                  .shadow({ radius: 15, color: 'rgba(0,0,0,0.1)', offsetY: 8 })
+
+                Row() {
+                  Column() {
+                    Text('身体健康档案')
+                      .fontSize(18) 
+                      .fontColor('#333')
+                      .fontWeight(FontWeight.Bold)
+                    Text('BMI · 体围数据 · 体态分析')
+                      .fontSize(12)
+                      .fontColor('#888')
+                      .margin({ top: 6 })
+                  }
+                  .alignItems(HorizontalAlign.Start)
+
+                  Blank()
+
+                  // 按钮 - 渐变胶囊
+                  Row() {
+                    Text('查看详情')
+                      .fontSize(12)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(Color.White)
+                    Image($r('app.media.startIcon'))
+                      .width(10)
+                      .height(10)
+                      .fillColor(Color.White)
+                      .margin({ left: 4 })
+                  }
+                  .linearGradient({
+                    angle: 90,
+                    colors: [['#5C7CFF', 0.0], ['#448AFF', 1.0]]
+                  })
+                  .shadow({ radius: 8, color: 'rgba(92, 124, 255, 0.3)', offsetY: 3 })
+                  .padding({ left: 14, right: 10, top: 8, bottom: 8 })
+                  .borderRadius(18)
+                }
+                .width('100%')
+                .alignItems(VerticalAlign.Center)
               }
+              .padding(24)
             }
             .width('100%')
-            .padding(24)
-            .backgroundColor('#FFFFFF')
-            .borderRadius(24)
-            .shadow({ radius: 20, color: 'rgba(92, 124, 255, 0.08)', offsetY: 8 })
+            .borderRadius(28)
+            // 优化：Hero 卡片也改为半透明玻璃质感
+            .linearGradient({
+              angle: 160,
+              colors: [['rgba(255, 255, 255, 0.7)', 0.0], ['rgba(244, 247, 255, 0.5)', 1.0]]
+            })
+            .backdropBlur(20)
+            // 优化：身体健康档案边框颜色为蓝色 (#5C7CFF) + 60% 透明度 (#99)
+            .border({ width: 1.5, color: '#995C7CFF' }) 
+            .shadow({ radius: 30, color: 'rgba(92, 124, 255, 0.2)', offsetY: 12 }) 
             .onClick(() => {
               this.getUIContext().getRouter().pushUrl({ url: 'pages/HomeTo/BodyInfoPage' })
             })
@@ -220,7 +314,8 @@ struct HomePage {
                 title: '今日步数',
                 value: `${this.currentData.steps}`,
                 unit: '步',
-                themeColor: this.getStepColor(this.currentData.steps),
+                // 保持：今日步数边框颜色为橙红色 (#FF7043)
+                themeColor: '#FF7043',
                 pageName: 'pages/HomeTo/StepsPage',
                 icon: $r('app.media.steps')
               })
@@ -230,7 +325,8 @@ struct HomePage {
                 title: '睡眠时长',
                 value: this.todaySleep ? `${(this.todaySleep.totalMinutes / 60).toFixed(1)}` : '0.0',
                 unit: '小时',
-                themeColor: this.getSleepColor(this.todaySleep ? this.todaySleep.totalMinutes / 60 : 0),
+                // 修改：睡眠时长边框颜色为深蓝色 (#2962FF)
+                themeColor: '#2962FF',
                 pageName: 'pages/HomeTo/SleepPage',
                 icon: $r('app.media.sleep')
               })
@@ -242,7 +338,8 @@ struct HomePage {
               title: '实时健康监测',
               value: `${this.currentData.heartRate} bpm  |  ${this.currentData.bloodOxygen}%`,
               unit: '心率 / 血氧',
-              themeColor: '#5C7CFF',
+              // 修改：实时健康监测边框颜色为绿色 (#00C853)
+              themeColor: '#00C853',
               pageName: 'features/healthStatus/view/StatusPage',
               icon: $r('app.media.instantcheck')
             })
@@ -252,6 +349,7 @@ struct HomePage {
               title: '疾病历史档案',
               value: '查看记录',
               unit: '',
+              // 保持：疾病历史记录边框颜色为深紫色 (#7E57C2)
               themeColor: '#7E57C2',
               pageName: 'pages/HomeTo/DiseasePage',
               icon: $r('app.media.diseasehistory')
@@ -266,13 +364,14 @@ struct HomePage {
       }
       .width('100%')
       .height('100%')
+      .zIndex(1)
 
       // 3. 底部导航栏
-      myNavigator()
+      myNavigator().zIndex(2)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F8F9FB')
+    .backgroundColor('#F2F5F9') // 保持背景一致
   }
 }
 
