@@ -25,7 +25,7 @@ export class HealthDB {
   async initDB(context: Context): Promise<void> {
     try {
       const config: relationalStore.StoreConfig = {
-        name: 'HealthDB_v3.db', // 升级数据库名称以重置 Schema (支持多用户)
+        name: 'HealthDB.db',
         securityLevel: relationalStore.SecurityLevel.S1,
       };
       this.rdbStore = await relationalStore.getRdbStore(context, config);
