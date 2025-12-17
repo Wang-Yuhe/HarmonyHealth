@@ -34,8 +34,7 @@ export class HealthDB {
       await this.rdbStore.executeSql(CREATE_USER_TABLE);
       await this.rdbStore.executeSql(CREATE_HEALTH_TABLE);
       await this.rdbStore.executeSql(CREATE_SLEEP_TABLE);
-      await this.rdbStore.executeSql(CREATE_MEDICAL_TABLE);
-
+      
       // 初始化一些模拟睡眠数据（如果为空）
       await this.initMockSleepData();
 
@@ -48,13 +47,15 @@ export class HealthDB {
   // Sleep Data Operations
   // ==========================================
 
-  private async initMockSleepData() {
+  public async initMockSleepData(userId: number) {
     try {
+      if (userId <= 0) return;
+
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
       
       // 检查今天是否有数据
-      const hasData = await this.getSleepDataByDate(todayStr);
+      const hasData = await this.getSleepDataByDate(userId, todayStr);
       if (!hasData) {
         // 生成过去7天的数据
         for (let i = 6; i >= 0; i--) {
@@ -69,7 +70,7 @@ export class HealthDB {
           const awake = Math.floor(Math.random() * 30); // 0-30分清醒
           const light = totalMinutes - deep - awake;
 
-          const sleepData = new SleepData(dateStr, totalMinutes, deep, light, awake);
+          const sleepData = new SleepData(dateStr, totalMinutes, deep, light, awake, userId);
           await this.insertSleepData(sleepData);
         }
       }
@@ -81,6 +82,7 @@ export class HealthDB {
   async insertSleepData(data: SleepData): Promise<number> {
     try {
       const value: relationalStore.ValuesBucket = {
+        userId: data.userId,
         date: data.date,
         totalMinutes: data.totalMinutes,
         deepSleepMinutes: data.deepSleepMinutes,
@@ -95,9 +97,10 @@ export class HealthDB {
     }
   }
 
-  async getSleepDataByDate(date: string): Promise<SleepData | null> {
+  async getSleepDataByDate(userId: number, date: string): Promise<SleepData | null> {
     try {
       const predicates = new relationalStore.RdbPredicates('sleep_data');
+      predicates.equalTo('userId', userId);
       predicates.equalTo('date', date);
       const result = await this.rdbStore!.query(predicates);
       if (result.goToFirstRow()) {
@@ -106,7 +109,8 @@ export class HealthDB {
           result.getLong(result.getColumnIndex('totalMinutes')),
           result.getLong(result.getColumnIndex('deepSleepMinutes')),
           result.getLong(result.getColumnIndex('lightSleepMinutes')),
-          result.getLong(result.getColumnIndex('awakeMinutes'))
+          result.getLong(result.getColumnIndex('awakeMinutes')),
+          result.getLong(result.getColumnIndex('userId'))
         );
       }
       return null;
@@ -116,9 +120,10 @@ export class HealthDB {
     }
   }
 
-  async getRecentSleepData(limit: number = 7): Promise<SleepData[]> {
+  async getRecentSleepData(userId: number, limit: number = 7): Promise<SleepData[]> {
     try {
       const predicates = new relationalStore.RdbPredicates('sleep_data');
+      predicates.equalTo('userId', userId);
       predicates.orderByDesc('date');
       predicates.limitAs(limit);
       
@@ -130,7 +135,8 @@ export class HealthDB {
           result.getLong(result.getColumnIndex('totalMinutes')),
           result.getLong(result.getColumnIndex('deepSleepMinutes')),
           result.getLong(result.getColumnIndex('lightSleepMinutes')),
-          result.getLong(result.getColumnIndex('awakeMinutes'))
+          result.getLong(result.getColumnIndex('awakeMinutes')),
+          result.getLong(result.getColumnIndex('userId'))
         ));
       }
       return list.reverse();
@@ -147,6 +153,7 @@ export class HealthDB {
   async insertHealthData(data: HealthData): Promise<number> {
     try {
       const value: relationalStore.ValuesBucket = {
+        userId: data.userId,
         timestamp: data.timestamp,
         heartRate: data.heartRate,
         steps: data.steps,
@@ -160,9 +167,10 @@ export class HealthDB {
     }
   }
 
-  async getLatestHealthData(): Promise<HealthData | null> {
+  async getLatestHealthData(userId: number): Promise<HealthData | null> {
     try {
       const predicates = new relationalStore.RdbPredicates('health_data');
+      predicates.equalTo('userId', userId);
       predicates.orderByDesc('timestamp'); // 按时间倒序
       predicates.limitAs(1); // 取最新一条
       
@@ -172,7 +180,8 @@ export class HealthDB {
           result.getLong(result.getColumnIndex('heartRate')),
           result.getLong(result.getColumnIndex('steps')),
           result.getLong(result.getColumnIndex('calories')),
-          result.getLong(result.getColumnIndex('bloodOxygen'))
+          result.getLong(result.getColumnIndex('bloodOxygen')),
+          result.getLong(result.getColumnIndex('userId'))
         );
         data.timestamp = result.getLong(result.getColumnIndex('timestamp'));
         return data;
@@ -188,9 +197,10 @@ export class HealthDB {
    * 获取最近N条健康数据用于图表展示
    * @param limit 条数
    */
-  async getRecentHealthData(limit: number = 7): Promise<HealthData[]> {
+  async getRecentHealthData(userId: number, limit: number = 7): Promise<HealthData[]> {
     try {
       const predicates = new relationalStore.RdbPredicates('health_data');
+      predicates.equalTo('userId', userId);
       predicates.orderByDesc('timestamp');
       predicates.limitAs(limit);
       
@@ -201,7 +211,8 @@ export class HealthDB {
           result.getLong(result.getColumnIndex('heartRate')),
           result.getLong(result.getColumnIndex('steps')),
           result.getLong(result.getColumnIndex('calories')),
-          result.getLong(result.getColumnIndex('bloodOxygen'))
+          result.getLong(result.getColumnIndex('bloodOxygen')),
+          result.getLong(result.getColumnIndex('userId'))
         );
         data.timestamp = result.getLong(result.getColumnIndex('timestamp'));
         list.push(data);
