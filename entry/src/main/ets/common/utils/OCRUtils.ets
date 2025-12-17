@@ -37,7 +37,7 @@ export class OCRUtils {
 
       try {
         // 调用云端接口
-        const cloudResult = await CloudOCRUtils.recognizeImage(imageUri);
+        const cloudResult = await CloudOCRUtils.recognizeTable(imageUri);
         return cloudResult;
       } catch (cloudError) {
         // 🔴 3. 终极兜底：云端也挂了

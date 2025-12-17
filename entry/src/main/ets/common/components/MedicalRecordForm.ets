@@ -1,5 +1,6 @@
 import picker from '@ohos.file.picker';
 import promptAction from '@ohos.promptAction';
+import { CloudOCRUtils } from '../utils/CloudOCRUtils';
 import { OCRUtils } from '../utils/OCRUtils';
 import { ParsedInfo, RecordParser } from './RecordParser';
 
@@ -15,6 +16,29 @@ export struct MedicalRecordForm {
   @Link pdfUri: string;
   @State isRecognizing: boolean = false;
 
+  // 用于暂存弹窗显示的文字
+  @State dialogTitle: string = '';
+  @State dialogMessage: string = '';
+
+  // 🔥 注册自定义弹窗控制器
+  dialogController: CustomDialogController = new CustomDialogController({
+    builder: WarningDialog({
+      title: this.dialogTitle,
+      message: this.dialogMessage
+    }),
+    autoCancel: true, // 点击空白处是否关闭
+    alignment: DialogAlignment.Center
+  });
+
+  private showCustomAlert(title: string, msg: string) {
+    // 1. 设置显示的文字
+    this.dialogTitle = title;
+    this.dialogMessage = msg;
+
+    // 2. 打开自定义弹窗
+    this.dialogController.open();
+  }
+
   // 选择图片逻辑
   async selectImage() {
     try {
@@ -29,7 +53,9 @@ export struct MedicalRecordForm {
         this.askForOCR('图片');
       }
     } catch (err) {
-      console.error('图片选择失败', err);
+      // 捕获文件选择器本身的错误（如权限被拒）
+      console.error('图片选择异常:', JSON.stringify(err));
+      this.showCustomAlert('无法选择图片', '读取相册失败，请检查是否授予了相关权限。');
     }
   }
   // 选择 PDF 文件
@@ -48,7 +74,8 @@ export struct MedicalRecordForm {
         this.askForOCR('PDF 文件');
       }
     } catch (err) {
-      console.error('文件选择失败', err);
+      console.error('文件选择异常:', JSON.stringify(err));
+      this.showCustomAlert('无法导入文档', '文件读取失败，请重试。');
     }
   }
   askForOCR(type: string) {
@@ -63,37 +90,40 @@ export struct MedicalRecordForm {
 
   async startOCR() {
     this.isRecognizing = true;
+    this.content = ""; // 先清空
+
     try {
       let text = '';
 
-      // 分支逻辑：判断是图片还是 PDF
       if (this.selectedImage) {
-        text = await OCRUtils.recognizeText(this.selectedImage);
+        text = await CloudOCRUtils.recognizeTable(this.selectedImage);
       } else if (this.pdfUri) {
-        text = await OCRUtils.recognizePdf(this.pdfUri);
+        text = await CloudOCRUtils.recognizePdf(this.pdfUri);
       } else {
-        promptAction.showToast({ message: '请先上传文件' });
+        this.showCustomAlert('提示', '请先上传文件');
         return;
       }
 
-      this.content = text;
-      const info: ParsedInfo = RecordParser.parse(text);
-      // 只有当输入框是空的时候才自动填，防止覆盖用户已经手写的
-      if (info.hospital && !this.hospital) {
-        this.hospital = info.hospital;
+      // 🔥🔥🔥【关键修改】只拦截带 "ERROR:" 前缀的系统错误
+      // 这样无论病历内容里有多少个“异常”或“失败”，都不会误触发弹窗了
+      if (text.startsWith('ERROR:')) {
+        // 去掉前缀再显示给用户，体验更好
+        const showMsg = text.replace('ERROR:', '').trim();
+        this.showCustomAlert('识别中断', showMsg);
+      } else {
+        // 成功！
+        this.content = text;
+        promptAction.showToast({ message: '智能提取成功' });
+
+        // 智能填充
+        const info = RecordParser.parse(text);
+        if (info.title) this.title = info.title;
+        if (info.hospital) this.hospital = info.hospital;
+        if (info.date) this.selectedDate = info.date;
       }
 
-      if (info.title && !this.title) {
-        this.title = info.title;
-      }
-
-      if (info.date) {
-        this.selectedDate = info.date;
-      }
-
-      promptAction.showToast({ message: '识别成功并已自动填写！' });
     } catch(e) {
-      promptAction.showToast({ message: '识别失败' });
+      this.showCustomAlert('系统异常', e.message);
     } finally {
       this.isRecognizing = false;
     }
@@ -184,13 +214,92 @@ export struct MedicalRecordForm {
         // 3. 详情与标签
         Column({ space: 10 }) {
           Text('详细内容').fontWeight(FontWeight.Bold)
-          TextArea({ placeholder: '病历详情...', text: this.content })
-            .height(150)
-            .onChange((val) => this.content = val)
 
-          Text('标签: ' + this.tags.join(', ')).fontSize(14).fontColor('#666')
+          TextArea({ placeholder: '识别结果...', text: this.content })
+            .height(300) // 高度设高一点，方便看表格
+            .backgroundColor('#F9F9F9')
+            .onChange((val) => this.content = val)
+            // 🔥🔥🔥【关键修改】设置等宽字体
+            .fontFamily('monospace')
+            .fontSize(9) // 稍微改小字体，防止表格太宽换行
         }.padding(15).backgroundColor(Color.White).borderRadius(12)
       }.padding(16)
     }
+  }
+}
+// --- 自定义警告弹窗组件 ---
+@CustomDialog
+struct WarningDialog {
+  controller: CustomDialogController;
+  title: string = '';
+  message: string = '';
+
+  // 🔥 1. 定义 X 轴偏移量状态
+  @State offsetX: number = 0;
+
+  // 🔥 2. 在弹窗显示时触发动画
+  aboutToAppear() {
+    // 延迟 50ms 确保弹窗已渲染，然后开始抖动
+    setTimeout(() => {
+      this.startShake();
+    }, 50);
+  }
+
+  // 🔥 3. 定义抖动动画逻辑
+  startShake() {
+    // 使用 keyframeAnimateTo 定义一组连续动作
+    this.getUIContext().keyframeAnimateTo({ iterations: 1 }, [
+      // 第一阶段：快速向左
+      { duration: 50, event: () => { this.offsetX = -10 } },
+      // 第二阶段：快速向右
+      { duration: 50, event: () => { this.offsetX = 10 } },
+      // 第三阶段：幅度减小向左
+      { duration: 50, event: () => { this.offsetX = -5 } },
+      // 第四阶段：幅度减小向右
+      { duration: 50, event: () => { this.offsetX = 5 } },
+      // 第五阶段：回正
+      { duration: 50, event: () => { this.offsetX = 0 } },
+    ]);
+  }
+
+  build() {
+    Column() {
+      // 1. 顶部图标
+      Text('⚠️')
+        .fontSize(40)
+        .margin({ top: 20, bottom: 10 })
+
+      // 2. 标题
+      Text(this.title)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#333')
+        .margin({ bottom: 8 })
+
+      // 3. 内容
+      Text(this.message)
+        .fontSize(16)
+        .fontColor('#FF4D4F')
+        .fontWeight(FontWeight.Medium)
+        .textAlign(TextAlign.Center)
+        .lineHeight(24)
+        .margin({ bottom: 20, left: 15, right: 15 })
+
+      // 4. 底部按钮
+      Button('知道了')
+        .width('80%')
+        .height(40)
+        .backgroundColor('#F5F5F5')
+        .fontColor('#666')
+        .onClick(() => {
+          this.controller.close();
+        })
+        .margin({ bottom: 20 })
+    }
+    .backgroundColor(Color.White)
+    .borderRadius(16)
+    .width('80%')
+    // 🔥 4. 将偏移量绑定到组件的 translate 属性上
+    .translate({ x: this.offsetX })
   }
 }

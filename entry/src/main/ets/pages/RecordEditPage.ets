@@ -104,7 +104,7 @@ struct RecordEditPage {
       // 标题栏
       Row() {
         Image($r('app.media.backButton')).width(24).onClick(() => router.back())
-        Text('病历详情').fontSize(20).fontWeight(FontWeight.Bold).margin({ left: 16 })
+        Text('病历详情').fontSize(9).fontWeight(FontWeight.Bold).margin({ left: 16 }).fontFamily('monospace')
         Blank()
         // 更新按钮
         Button('更新')
