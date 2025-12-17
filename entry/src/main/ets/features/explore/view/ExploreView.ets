@@ -87,9 +87,12 @@ export struct ExploreView {
             this.SectionError(() => { this.vm.refreshGreeting() })
           }
 
+          // 1.5 Banner Swiper
+          this.BannerSwiper()
+
           // 2. Diet Plan
           Row() {
-            Text("营养计划").sectionTitle()
+            this.SectionHeader("营养计划")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshDiet() }, this.isDietLoading)
           }.width('100%').padding({ right: 20 })
@@ -116,7 +119,7 @@ export struct ExploreView {
 
           // 3. Exercise Plan
           Row() {
-            Text("运动建议").sectionTitle()
+            this.SectionHeader("运动建议")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshExercise() }, this.isExerciseLoading)
           }.width('100%').padding({ right: 20 })
@@ -143,7 +146,7 @@ export struct ExploreView {
 
           // 4. Schedule
           Row() {
-            Text("每日流程").sectionTitle()
+            this.SectionHeader("每日流程")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshSchedule() }, this.isScheduleLoading)
           }.width('100%').padding({ right: 20 })
@@ -163,7 +166,7 @@ export struct ExploreView {
 
           // 5. Tips
           Row() {
-            Text("健康小贴士").sectionTitle()
+            this.SectionHeader("健康小贴士")
             Blank()
             this.RefreshIcon(() => { this.vm.refreshTips() }, this.isTipsLoading)
           }.width('100%').padding({ right: 20 })
@@ -197,6 +200,65 @@ export struct ExploreView {
     .width('100%')
     .height('100%')
     .backgroundColor(COLOR_BG)
+  }
+
+  @Builder
+  SectionHeader(title: string): void {
+    Row() {
+      Text(title)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(COLOR_TEXT_MAIN)
+    }
+    .padding({ left: 20, top: 20, bottom: 10 })
+  }
+
+  @Builder
+  BannerSwiper(): void {
+    Swiper() {
+      this.BannerItem("7天瑜伽挑战", "开始你的柔韧之旅", '#6C5CE7')
+      this.BannerItem("健康饮食指南", "吃出好身材", '#00B894')
+      this.BannerItem("改善睡眠质量", "拥有深度睡眠", '#FD79A8')
+    }
+    .autoPlay(true)
+    .interval(5000)
+    .height(110)
+    .itemSpace(15)
+    .margin({ left: 20, right: 20, top: 10, bottom: 10 })
+    .borderRadius(16)
+    .indicator(true)
+  }
+
+  @Builder
+  BannerItem(title: string, subtitle: string, color: string): void {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(color)
+        .borderRadius(16)
+        .opacity(0.9)
+      
+      Column() {
+        Text(title)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
+          .margin({ bottom: 8 })
+        
+        Text(subtitle)
+          .fontSize(14)
+          .fontColor(Color.White)
+          .opacity(0.9)
+      }
+      .width('100%')
+      .height('100%')
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Start)
+      .padding(24)
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -237,45 +299,55 @@ export struct ExploreView {
   @Builder
   GreetingSection(data: GreetingData): void {
     Column() {
-      Text(data.greeting)
-        .fontSize(20)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(COLOR_TEXT_MAIN)
-        .width('100%')
-      
-      Stack() {
-        Image($r('app.media.inspiration')) // Background pattern or gradient
+      // Main Colored Card Container
+      Column() {
+        // 1. Greeting Title (White Text)
+        Text(data.greeting)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
           .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .opacity(0.1)
-          .borderRadius(16)
-        
+          .margin({ bottom: 16 })
+
+        // 2. Inspiration Inner Box (Layered)
         Column() {
-          Text("每日灵感")
-            .fontSize(12)
-            .fontColor(Color.White)
-            .backgroundColor(COLOR_ACCENT)
-            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-            .borderRadius(8)
-            .margin({ bottom: 8 })
-          
-          Text(`"${data.dailyQuote}"`)
-            .fontSize(16)
+          Row() {
+            Text("每日灵感")
+              .fontSize(10)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(COLOR_PRIMARY)
+              .backgroundColor(Color.White)
+              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+              .borderRadius(8)
+          }
+          .width('100%')
+          .margin({ bottom: 10 })
+
+          Text(`“${data.dailyQuote}”`)
+            .fontSize(14)
             .fontStyle(FontStyle.Italic)
             .fontWeight(FontWeight.Medium)
-            .fontColor(COLOR_TEXT_MAIN)
-            .textAlign(TextAlign.Center)
+            .fontColor(Color.White)
+            .opacity(0.9)
+            .lineHeight(24)
+            .width('100%')
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
-        .padding(20)
         .width('100%')
+        .backgroundColor('rgba(255, 255, 255, 0.15)') // Glassmorphism effect
+        .borderRadius(12)
+        .padding(16)
+        .backdropBlur(10)
       }
-      .margin({ top: 15 })
       .width('100%')
-      .height(120)
-      .backgroundColor(Color.White)
-      .borderRadius(16)
-      .shadow({ radius: 10, color: '#10000000', offsetY: 5 })
+      .linearGradient({
+        angle: 135,
+        colors: [[COLOR_PRIMARY, 0.0], ['#6C5CE7', 1.0]] // Blue to Purple gradient
+      })
+      .borderRadius(20)
+      .padding(20)
+      .shadow({ radius: 10, color: 'rgba(74, 144, 226, 0.3)', offsetY: 5 })
     }
     .padding({ left: 20, right: 20 })
   }
@@ -382,6 +454,7 @@ export struct ExploreView {
       Text(item.activity)
         .fontSize(15)
         .fontColor(COLOR_TEXT_MAIN)
+        .layoutWeight(1)
     }
     .width('100%')
     .padding({ top: 5, bottom: 5 })
@@ -419,10 +492,4 @@ export struct ExploreView {
 }
 
 // --- Styles Extension ---
-@Extend(Text) function sectionTitle() {
-  .fontSize(18)
-  .fontWeight(FontWeight.Bold)
-  .fontColor(COLOR_TEXT_MAIN)
-  .width('100%')
-  .padding({ left: 20, top: 20, bottom: 10 })
-}
+// Removed sectionTitle extension as it is replaced by SectionHeader builder
