@@ -60,7 +60,7 @@ export struct ExploreView {
           .fontColor(COLOR_TEXT_MAIN)
         Blank()
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($r('app.media.startIcon')) // Placeholder for refresh icon
+          Image($r('app.media.update')) // Placeholder for refresh icon
             .width(24)
             .height(24)
             .fillColor(COLOR_PRIMARY)
@@ -454,6 +454,7 @@ export struct ExploreView {
       Text(item.activity)
         .fontSize(15)
         .fontColor(COLOR_TEXT_MAIN)
+        .layoutWeight(1)
     }
     .width('100%')
     .padding({ top: 5, bottom: 5 })
