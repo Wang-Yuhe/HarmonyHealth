@@ -76,24 +76,24 @@ struct HealthItemComponent {
       .padding(18)
       .width('100%')
       .borderRadius(24)
-      // 优化：大幅降低背景不透明度，增强玻璃通透感
+      // 优化：调整渐变透明度，模拟强光照射下的玻璃反光
       .linearGradient({
         angle: 135,
-        colors: [['rgba(255, 255, 255, 0.6)', 0.0], ['rgba(255, 255, 255, 0.4)', 1.0]]
+        colors: [['rgba(255, 255, 255, 0.8)', 0.0], ['rgba(255, 255, 255, 0.2)', 1.0]]
       })
-      // 优化：增加模糊度，使透出的背景更柔和
-      .backdropBlur(20) 
+      // 优化：增加模糊度，增强磨砂质感
+      .backdropBlur(70)
       
-      // 优化：边框透明度提升至 60% (#99)，让边缘反光更明显
+      // 优化：边框透明度调整为 50% (#80)，保持色彩同时增加通透感
       .border({ 
-        width: 1.5, 
-        color: this.themeColor.startsWith('#') ? ('#99' + this.themeColor.substring(1)) : this.themeColor 
+        width: 2.0,
+        color: this.themeColor.startsWith('#') ? ('#80' + this.themeColor.substring(1)) : this.themeColor 
       }) 
-      // 优化：阴影透明度提升至 15% (#26)，增强悬浮高度感
+      // 优化：大幅增加阴影半径和偏移，增强立体悬浮感 (25% 透明度)
       .shadow({ 
-        radius: 25, 
-        color: this.themeColor.startsWith('#') ? ('#26' + this.themeColor.substring(1)) : '#26000000', 
-        offsetY: 10 
+        radius: 65,
+        color: this.themeColor.startsWith('#') ? ('#50' + this.themeColor.substring(1)) : '#40000000',
+        offsetY: 50
       })
       .onClick(() => {
         this.getUIContext().getRouter().pushUrl({ url: this.pageName })
@@ -295,15 +295,15 @@ struct HomePage {
             }
             .width('100%')
             .borderRadius(28)
-            // 优化：Hero 卡片也改为半透明玻璃质感
+            // 优化：Hero 卡片增强玻璃质感和反光
             .linearGradient({
-              angle: 160,
-              colors: [['rgba(255, 255, 255, 0.7)', 0.0], ['rgba(244, 247, 255, 0.5)', 1.0]]
+              angle: 135,
+              colors: [['rgba(255, 255, 255, 0.85)', 0.0], ['rgba(244, 247, 255, 0.25)', 1.0]]
             })
-            .backdropBlur(20)
-            // 优化：身体健康档案边框颜色为蓝色 (#5C7CFF) + 60% 透明度 (#99)
-            .border({ width: 1.5, color: '#995C7CFF' }) 
-            .shadow({ radius: 30, color: 'rgba(92, 124, 255, 0.2)', offsetY: 12 }) 
+            .backdropBlur(40)
+            // 优化：身体健康档案边框颜色为蓝色 (#5C7CFF) + 50% 透明度
+            .border({ width: 1.5, color: '#805C7CFF' }) 
+            .shadow({ radius: 35, color: 'rgba(92, 124, 255, 0.3)', offsetY: 15 }) 
             .onClick(() => {
               this.getUIContext().getRouter().pushUrl({ url: 'pages/HomeTo/BodyInfoPage' })
             })
