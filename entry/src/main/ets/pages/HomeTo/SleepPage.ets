@@ -1,6 +1,7 @@
 import { BackButton } from '../../common/components/BackButton'
 import { HealthDB } from '../../database/HealthDB';
 import { SleepData } from '../../common/model/SleepData';
+import { AuthUtil } from '../../common/utils/AuthUtil';
 
 @Component
 struct StatCard {
@@ -58,7 +59,11 @@ struct SleepPage {
   @State lightSleepRatio: string = '0%';
 
   async aboutToAppear() {
-    this.sleepData = await HealthDB.getInstance().getRecentSleepData(7);
+    const context = this.getUIContext().getHostContext() as Context;
+    const user = await AuthUtil.getLoginUser(context);
+    if (!user) return;
+
+    this.sleepData = await HealthDB.getInstance().getRecentSleepData(user.id, 7);
     if (this.sleepData.length > 0) {
       const max = Math.max(...this.sleepData.map(d => d.totalMinutes));
       if (max > 0) this.maxDuration = max * 1.1;

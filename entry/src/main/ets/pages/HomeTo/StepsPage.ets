@@ -2,6 +2,7 @@
 import { BackButton } from '../../common/components/BackButton'
 import { HealthDB } from '../../database/HealthDB';
 import { HealthData } from '../../common/model/HealthData';
+import { AuthUtil } from '../../common/utils/AuthUtil';
 
 @Component
 struct StatCard {
@@ -58,8 +59,12 @@ struct StepsPage {
   @State totalDistance: string = '0.0';
 
   async aboutToAppear() {
+    const context = this.getUIContext().getHostContext() as Context;
+    const user = await AuthUtil.getLoginUser(context);
+    if (!user) return;
+
     // 获取最近 20 条数据用于展示趋势
-    let rawData = await HealthDB.getInstance().getRecentHealthData(20);
+    let rawData = await HealthDB.getInstance().getRecentHealthData(user.id, 20);
     
     if (rawData.length > 0) {
       // 1. 确保按时间正序排列 (旧 -> 新)，以便图表从左到右显示

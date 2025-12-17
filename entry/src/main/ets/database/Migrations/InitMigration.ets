@@ -21,6 +21,7 @@ export const CREATE_USER_TABLE = `
 export const CREATE_HEALTH_TABLE = `
   CREATE TABLE IF NOT EXISTS health_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
     timestamp INTEGER NOT NULL,
     heartRate INTEGER,
     steps INTEGER,
@@ -32,10 +33,12 @@ export const CREATE_HEALTH_TABLE = `
 export const CREATE_SLEEP_TABLE = `
   CREATE TABLE IF NOT EXISTS sleep_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL UNIQUE,
+    userId INTEGER NOT NULL,
+    date TEXT NOT NULL,
     totalMinutes INTEGER,
     deepSleepMinutes INTEGER,
     lightSleepMinutes INTEGER,
-    awakeMinutes INTEGER
+    awakeMinutes INTEGER,
+    UNIQUE(userId, date)
   );
 `;

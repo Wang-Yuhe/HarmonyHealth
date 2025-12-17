@@ -241,7 +241,8 @@ struct StatusPage {
   toggleMonitoring(enable: boolean) {
     this.isMonitoring = enable;
     if (enable) {
-      this.healthVM.startMonitoring(this.updateInterval * 1000, (data) => {
+      const context = this.getUIContext().getHostContext() as Context;
+      this.healthVM.startMonitoring(context, this.updateInterval * 1000, (data: HealthData) => {
         this.currentData = data;
       });
     } else {
