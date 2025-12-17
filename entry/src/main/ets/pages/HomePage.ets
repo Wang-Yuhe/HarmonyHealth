@@ -7,6 +7,7 @@ import { HealthVM } from '../features/healthStatus/viewmodel/HealthVM';
 import { HealthData } from '../common/model/HealthData';
 import { SleepData } from '../common/model/SleepData';
 import { HealthDB } from '../database/HealthDB';
+import { AuthUtil } from '../common/utils/AuthUtil';
 
 @Component
 struct HealthItemComponent {
@@ -145,18 +146,25 @@ struct HomePage {
   }
 
   async aboutToAppear() {
-    const lastData = await this.healthVM.loadLastData();
+    const context = this.getUIContext().getHostContext() as Context;
+    const lastData = await this.healthVM.loadLastData(context);
     if (lastData) this.currentData = lastData;
     await this.loadSleepData();
   }
 
   async loadSleepData() {
-    const todayStr = new Date().toISOString().split('T')[0];
-    this.todaySleep = await HealthDB.getInstance().getSleepDataByDate(todayStr);
+    const context = this.getUIContext().getHostContext() as Context;
+    const user = await AuthUtil.getLoginUser(context);
+    if (user) {
+      await HealthDB.getInstance().initMockSleepData(user.id);
+      const todayStr = new Date().toISOString().split('T')[0];
+      this.todaySleep = await HealthDB.getInstance().getSleepDataByDate(user.id, todayStr);
+    }
   }
 
   onPageShow() {
-    this.healthVM.startMonitoring(3000, (data) => { this.currentData = data; });
+    const context = this.getUIContext().getHostContext() as Context;
+    this.healthVM.startMonitoring(context, 3000, (data: HealthData) => { this.currentData = data; });
     this.loadSleepData();
   }
 
