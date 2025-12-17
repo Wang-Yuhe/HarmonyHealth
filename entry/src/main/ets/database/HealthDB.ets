@@ -9,7 +9,9 @@ import { Context } from '@kit.AbilityKit';
 import { User } from '../common/model/User';
 import { HealthData } from '../common/model/HealthData';
 import { SleepData } from '../common/model/SleepData';
-import { CREATE_USER_TABLE, CREATE_HEALTH_TABLE, CREATE_SLEEP_TABLE } from './Migrations/InitMigration';
+import { CREATE_USER_TABLE, CREATE_HEALTH_TABLE, CREATE_SLEEP_TABLE,
+  CREATE_MEDICAL_TABLE } from './Migrations/InitMigration';
+import { MedicalRecord } from '../common/model/MedicalRecordModel';
 
 export class HealthDB {
   private static instance: HealthDB;
@@ -32,7 +34,8 @@ export class HealthDB {
       await this.rdbStore.executeSql(CREATE_USER_TABLE);
       await this.rdbStore.executeSql(CREATE_HEALTH_TABLE);
       await this.rdbStore.executeSql(CREATE_SLEEP_TABLE);
-      
+      await this.rdbStore.executeSql(CREATE_MEDICAL_TABLE);
+
       // 初始化一些模拟睡眠数据（如果为空）
       await this.initMockSleepData();
 
@@ -321,5 +324,117 @@ export class HealthDB {
     }
   }
 
+  // ==========================================
+  // Medical Records Operations
+  // ==========================================
+
+  async insertMedicalRecord(username: string, record: MedicalRecord): Promise<number> {
+    if (!this.rdbStore) return -1;
+    try {
+      const value: relationalStore.ValuesBucket = {
+        username: username, // 绑定用户
+        title: record.title,
+        date: record.date, // 假设 Model 里是 string 类型
+        imageUri: record.imageUri,
+        pdfUri: record.pdfUri,
+        content: record.content,
+        tags: JSON.stringify(record.tags), // 数组转字符串存储
+        hospital: record.hospital
+      };
+      return await this.rdbStore.insert('medical_records', value);
+    } catch (e) {
+      console.error('insertMedicalRecord error:', e);
+      return -1;
+    }
+  }
+
+  /**
+   * 获取某个用户的所有病历
+   * @param username 用户名
+   */
+  async getMedicalRecords(username: string): Promise<MedicalRecord[]> {
+    if (!this.rdbStore) return [];
+    try {
+      const predicates = new relationalStore.RdbPredicates('medical_records');
+      predicates.equalTo('username', username); // 只查这个用户的
+      predicates.orderByDesc('date'); // 按日期倒序
+
+      const result = await this.rdbStore.query(predicates);
+      const list: MedicalRecord[] = [];
+
+      while (result.goToNextRow()) {
+        // 从数据库读出数据
+        const title = result.getString(result.getColumnIndex('title'));
+        const date = result.getString(result.getColumnIndex('date'));
+        const imageUri = result.getString(result.getColumnIndex('imageUri'));
+        const pdfUri = result.getString(result.getColumnIndex('pdfUri'));
+        const content = result.getString(result.getColumnIndex('content'));
+        const tagsStr = result.getString(result.getColumnIndex('tags'));
+        const hospital = result.getString(result.getColumnIndex('hospital'));
+        const dbId = result.getLong(result.getColumnIndex('id'));
+
+        // 还原 Tags
+        let tags: string[] = [];
+        try {
+          tags = JSON.parse(tagsStr);
+        } catch (e) {}
+
+        // 构造对象
+        const record = new MedicalRecord(title, date, imageUri, pdfUri, content, tags, hospital);
+        record.id = dbId.toString(); // 建议 Model 里的 id 兼容数据库 ID
+
+        list.push(record);
+      }
+      result.close();
+      return list;
+    } catch (e) {
+      console.error('getMedicalRecords error:', e);
+      return [];
+    }
+  }
+
+  /**
+   * 删除病历
+   */
+  async deleteMedicalRecord(id: string): Promise<boolean> {
+    if (!this.rdbStore) return false;
+    try {
+      const predicates = new relationalStore.RdbPredicates('medical_records');
+      predicates.equalTo('id', id); // 根据数据库 ID 删除
+      const rows = await this.rdbStore.delete(predicates);
+      return rows > 0;
+    } catch (e) {
+      console.error('deleteMedicalRecord error:', e);
+      return false;
+    }
+  }
+
+  /**
+   * 更新病历
+   */
+  async updateMedicalRecord(username: string, record: MedicalRecord): Promise<boolean> {
+    if (!this.rdbStore) return false;
+    try {
+      const predicates = new relationalStore.RdbPredicates('medical_records');
+      predicates.equalTo('id', record.id);
+      predicates.equalTo('username', username); // 双重保险，防止改了别人的数据
+
+      const value: relationalStore.ValuesBucket = {
+        title: record.title,
+        date: record.date,
+        imageUri: record.imageUri,
+        pdfUri: record.pdfUri,
+        content: record.content,
+        tags: JSON.stringify(record.tags),
+        hospital: record.hospital
+      };
+
+      const rows = await this.rdbStore.update(value, predicates);
+      return rows > 0;
+    } catch (e) {
+      console.error('updateMedicalRecord error:', e);
+      return false;
+    }
+  }
 }
 

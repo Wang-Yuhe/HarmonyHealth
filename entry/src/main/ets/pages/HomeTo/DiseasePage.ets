@@ -1,31 +1,39 @@
-// entry/src/main/ets/pages/MedicalHistory/MedicalHistoryPage.ets
+// entry/src/main/ets/pages/MedicalHistory/MedicalHistoryPage.ets (或 DiseasePage.ets)
 import router from '@ohos.router';
 import { MedicalRecord } from '../../common/model/MedicalRecordModel';
+import { HealthDB } from '../../database/HealthDB';
 
 @Entry
 @Component
 export struct DiseasePage {
-  // 绑定全局持久化数据
-  @StorageLink('MedicalRecords') records: MedicalRecord[] = [];
+  @State records: MedicalRecord[] = [];
+  // 获取当前登录用户 (用于数据库查询)
+  @StorageProp('currentUser') currentUser: string = '';
 
   // 搜索关键词状态
   @State searchText: string = '';
+
+  // 页面显示时，从数据库重新拉取数据
+  async onPageShow() {
+    let targetUser = this.currentUser || 'admin'; // 兜底
+    this.records = await HealthDB.getInstance().getMedicalRecords(targetUser);
+  }
 
   build() {
     Stack({ alignContent: Alignment.BottomEnd }) {
       // 底层背景容器
       Column() {
         // ===============================================
-        // 1. 顶部紫色头部区域 (模仿参考图的 Header)
+        // 1. 顶部紫色头部区域
         // ===============================================
         Column() {
           // 1.1 导航栏 (返回按钮 + 标题)
           Row() {
             // 返回按钮 (白色圆形背景)
             Button({ type: ButtonType.Circle, stateEffect: true }) {
-              Image($r('app.media.backButton')) // 确保图标存在，或者用 Text('<') 代替
+              Image($r('app.media.backButton')) // 确保资源存在
                 .width(20).height(20)
-                .fillColor('#4A3B99') // 图标颜色
+                .fillColor('#4A3B99')
             }
             .width(40).height(40)
             .backgroundColor(Color.White)
@@ -42,7 +50,7 @@ export struct DiseasePage {
           .width('100%')
           .padding({ top: 12, bottom: 20 })
 
-          // 1.2 统计数据展示 (模仿参考图的大数字)
+          // 1.2 统计数据展示
           Row() {
             Column() {
               Text(this.records.length.toString()) // 大数字
@@ -59,7 +67,6 @@ export struct DiseasePage {
             .alignItems(HorizontalAlign.Start)
 
             Blank()
-
           }
           .width('100%')
           .padding({ left: 10, right: 10, bottom: 30 })
@@ -74,10 +81,10 @@ export struct DiseasePage {
         })
 
         // ===============================================
-        // 2. 下方白色卡片区域 (模仿参考图的白色面板)
+        // 2. 下方白色卡片区域
         // ===============================================
         Column() {
-          // 2.1 搜索框 (放在白色区域顶部)
+          // 2.1 搜索框
           Search({ placeholder: '搜索病历标题、医院或日期...' })
             .width('100%')
             .height(45)
@@ -102,8 +109,9 @@ export struct DiseasePage {
                   this.buildRecordCard(item)
                 }
                 .onClick(() => {
+                  // 修正跳转路径，指向详情页
                   router.pushUrl({
-                    url: 'pages/RecordEditPage',
+                    url: 'pages/RecordEditPage', // 确保路径正确
                     params: { record: item }
                   })
                 })
@@ -122,9 +130,9 @@ export struct DiseasePage {
         .layoutWeight(1) // 占满剩余高度
         .backgroundColor(Color.White)
         .padding({ left: 20, right: 20 })
-        // 左上右上圆角，营造“卡片插入”效果
+        // 左上右上圆角
         .borderRadius({ topLeft: 30, topRight: 30 })
-        .margin({ top: -20 }) // 稍微向上重叠一点，显得更紧凑
+        .margin({ top: -20 })
       }
       .width('100%')
       .height('100%')
@@ -142,11 +150,11 @@ export struct DiseasePage {
       }
       .width(60)
       .height(60)
-      // 使用更亮的紫色作为按钮，形成对比
       .backgroundColor('#6C5DD3')
       .shadow({ radius: 10, color: '#40352880', offsetY: 6 })
       .margin({ right: 24, bottom: 32 })
       .onClick(() => {
+        // 修正跳转路径，指向新增页
         router.pushUrl({ url: 'pages/AddRecordPage' })
       })
     }
@@ -154,10 +162,9 @@ export struct DiseasePage {
     .height('100%')
   }
 
-  // --- 空状态 UI (适配紫色风格) ---
+  // --- 空状态 UI ---
   @Builder buildEmptyState() {
     Column() {
-      // 使用文件夹图标或Emoji
       Text('📂')
         .fontSize(70)
         .margin({ bottom: 20, top: 60 })
@@ -180,8 +187,8 @@ export struct DiseasePage {
         .width(160)
         .height(42)
         .fontSize(15)
-        .backgroundColor('#F0EFFF') // 极淡的紫色背景
-        .fontColor('#4A3B99')       // 深紫色文字
+        .backgroundColor('#F0EFFF')
+        .fontColor('#4A3B99')
         .onClick(() => {
           router.pushUrl({ url: 'pages/AddRecordPage' })
         })
@@ -191,14 +198,14 @@ export struct DiseasePage {
     .alignItems(HorizontalAlign.Center)
   }
 
-  // --- 病历卡片 UI (柱状图风格的列表项) ---
+  // --- 病历卡片 UI ---
   @Builder buildRecordCard(item: MedicalRecord) {
     Row() {
-      // 左侧装饰条 (模仿柱状图的感觉)
+      // 左侧装饰条
       Column()
         .width(4)
         .height(40)
-        .backgroundColor('#6C5DD3') // 亮紫色
+        .backgroundColor('#6C5DD3')
         .borderRadius(2)
         .margin({ right: 12 })
 
@@ -236,7 +243,7 @@ export struct DiseasePage {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FBFBFD') // 极淡的灰紫色，区别于纯白背景
+    .backgroundColor('#FBFBFD')
     .borderRadius(16)
     .margin({ bottom: 2 })
   }

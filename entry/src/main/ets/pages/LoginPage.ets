@@ -222,6 +222,7 @@ struct LoginPage {
       const ctx = this.getUIContext().getHostContext() as Context;
       const ok = await this.loginVM.login(ctx, this.username, this.password);
       if (ok) {
+        AppStorage.setOrCreate('currentUser', this.username);
         this.showToast('登录成功');
         this.safeNavigate('pages/HomePage', 'replace');
       } else {

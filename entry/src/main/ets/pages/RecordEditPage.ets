@@ -2,14 +2,13 @@ import router from '@ohos.router';
 import { MedicalRecordForm } from '../common/components/MedicalRecordForm';
 import { MedicalRecord } from '../common/model/MedicalRecordModel';
 import promptAction from '@ohos.promptAction';
-
+import { HealthDB } from '../database/HealthDB';
 interface PageParams {
   record: MedicalRecord;
 }
-
 @Entry
 @Component
-struct RecordDetailPage {
+struct RecordEditPage {
   // 状态变量
   @State recordId: string = '';
   @State title: string = '';
@@ -19,7 +18,8 @@ struct RecordDetailPage {
   @State hospital: string = '';
   @State selectedDate: Date = new Date();
   @State tags: string[] = [];
-  @StorageLink('MedicalRecords') records: MedicalRecord[] = [];
+  // 1. 获取当前登录用户名 (不再直接链接 MedicalRecords 数组)
+  @StorageProp('currentUser') currentUser: string = '';
   aboutToAppear() {
     const params = router.getParams() as PageParams;
     if (params && params.record) {
@@ -30,19 +30,18 @@ struct RecordDetailPage {
       this.selectedImage = rec.imageUri;
       this.pdfUri = rec.pdfUri || '';
       this.hospital = rec.hospital;
+      // 兼容处理：确保日期正确转换
       this.selectedDate = new Date(rec.date);
       this.tags = rec.tags;
     }
   }
-
-  updateRecord() {
-    // 找到当前病历在数组中的索引
-    const index = this.records.findIndex(item => item.id === this.recordId);
-
-    if (index !== -1) {
-      // 构建更新后的对象
-      // 注意：这里需要创建一个新对象来替换旧的
+  // 2. 更新逻辑改为调用数据库
+  async updateRecord() {
+    let targetUser = this.currentUser || 'admin'; // 兜底
+    try {
       const dateStr = this.selectedDate.toISOString();
+
+      // 构建更新对象
       const updatedRecord = new MedicalRecord(
         this.title,
         dateStr,
@@ -52,53 +51,52 @@ struct RecordDetailPage {
         this.tags,
         this.hospital
       );
-      // 保持 ID 不变
+      // 重要：ID 必须保持不变，数据库据此查找记录
       updatedRecord.id = this.recordId;
 
-      // 替换数组中的元素
-      this.records[index] = updatedRecord;
-      this.records = [...this.records];
-      console.info('更新成功');
-      router.back();
-    } else {
-      console.error('未找到该病历');
+      // 调用数据库更新方法
+      const success = await HealthDB.getInstance().updateMedicalRecord(targetUser, updatedRecord);
+
+      if (success) {
+        promptAction.showToast({ message: '更新成功' });
+        router.back(); // 返回列表页，列表页会自动从数据库重新加载
+      } else {
+        promptAction.showToast({ message: '更新失败' });
+      }
+    } catch (e) {
+      console.error('更新病历异常:', e);
+      promptAction.showToast({ message: '系统错误' });
     }
   }
-  // 删除病历的逻辑
+  // 删除确认弹窗 (保持不变)
   deleteRecord() {
-    // 1. 弹出确认框，防止手滑误删
     promptAction.showDialog({
       title: '删除确认',
       message: '确定要永久删除这条病历记录吗？此操作无法撤销。',
       buttons: [
         { text: '取消', color: '#666666' },
-        { text: '确认删除', color: '#FF0000' } // 红色警示
+        { text: '确认删除', color: '#FF0000' }
       ]
     }).then((resp) => {
-      // resp.index === 1 表示点击了第二个按钮（确认删除）
       if (resp.index === 1) {
         this.performDelete();
       }
     });
   }
-  // 执行真正的删除操作
-  performDelete() {
-    const index = this.records.findIndex(item => item.id === this.recordId);
-
-    if (index !== -1) {
-      // 2. 从数组中移除该元素
-      this.records.splice(index, 1);
-
-      // 3. 强制刷新数组引用
-      // 这一步能保证返回列表页时，列表会自动刷新
-      this.records = [...this.records];
-
-      promptAction.showToast({ message: '已删除' });
-
-      // 4. 返回列表页
-      router.back();
-    } else {
-      promptAction.showToast({ message: '删除失败：未找到记录' });
+  // 3. 删除逻辑改为调用数据库
+  async performDelete() {
+    try {
+      // 调用数据库删除方法
+      const success = await HealthDB.getInstance().deleteMedicalRecord(this.recordId);
+      if (success) {
+        promptAction.showToast({ message: '已删除' });
+        router.back(); // 返回列表页
+      } else {
+        promptAction.showToast({ message: '删除失败' });
+      }
+    } catch (e) {
+      console.error('删除病历异常:', e);
+      promptAction.showToast({ message: '系统错误' });
     }
   }
   build() {
@@ -108,11 +106,18 @@ struct RecordDetailPage {
         Image($r('app.media.backButton')).width(24).onClick(() => router.back())
         Text('病历详情').fontSize(20).fontWeight(FontWeight.Bold).margin({ left: 16 })
         Blank()
-        Button('更新').onClick(() => this.updateRecord())
-      }.padding(16).width('100%').backgroundColor(Color.White)
-      // --- 中间表单区域 (使用 Column 包裹，确保按钮在底部) ---
+        // 更新按钮
+        Button('更新')
+          .fontSize(16)
+          .fontColor(Color.White)
+          .backgroundColor('#007DFF')
+          .height(32)
+          .onClick(() => this.updateRecord())
+      }
+      .padding(16).width('100%').backgroundColor(Color.White)
+      // --- 中间表单区域 ---
       Column() {
-        // 复用表单组件 (注意设置 layoutWeight 让它占据中间剩余空间)
+        // 复用表单组件
         MedicalRecordForm({
           title: $title,
           content: $content,
@@ -131,13 +136,13 @@ struct RecordDetailPage {
           .fontSize(16)
           .fontColor(Color.White)
           .backgroundColor('#FF4D4F') // 红色背景
-          .margin({ top: 10, bottom: 20 }) // 上下留白
-          .onClick(() => this.deleteRecord()) // 绑定删除事件
+          .margin({ top: 10, bottom: 20 })
+          .onClick(() => this.deleteRecord())
       }
-      .layoutWeight(1) // 让整个内容区撑开
+      .layoutWeight(1)
       .width('100%')
     }
     .height('100%')
     .backgroundColor('#F1F3F5')
-    }
   }
+}

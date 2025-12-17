@@ -39,3 +39,17 @@ export const CREATE_SLEEP_TABLE = `
     awakeMinutes INTEGER
   );
 `;
+
+export const CREATE_MEDICAL_TABLE = `
+  CREATE TABLE IF NOT EXISTS medical_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    title TEXT,
+    date TEXT,
+    imageUri TEXT,
+    pdfUri TEXT,
+    content TEXT,
+    tags TEXT,
+    hospital TEXT
+  );
+`;
