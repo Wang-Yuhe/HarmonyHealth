@@ -3,6 +3,49 @@ import { BackButton } from '../../common/components/BackButton'
 import { HealthDB } from '../../database/HealthDB';
 import { HealthData } from '../../common/model/HealthData';
 
+@Component
+struct StatCard {
+  @Prop title: string = '';
+  @Prop value: string = '';
+  @Prop unit: string = '';
+  @Prop color: string = '';
+
+  build() {
+    Column() {
+      Row() {
+        Circle({ width: 8, height: 8 })
+          .fill(this.color)
+          .margin({ right: 6 })
+        Text(this.title)
+          .fontSize(12)
+          .fontColor('#666')
+      }
+      .width('100%')
+      .margin({ bottom: 8 })
+
+      Row() {
+        Text(this.value)
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#333')
+        Text(` ${this.unit}`)
+          .fontSize(12)
+          .fontColor('#999')
+          .margin({ bottom: 4 })
+      }
+      .alignItems(VerticalAlign.Bottom)
+    }
+    .width('100%')
+    .height(80)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(16)
+    .padding(16)
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Center)
+    .shadow({ radius: 10, color: 'rgba(0,0,0,0.03)', offsetY: 4 })
+  }
+}
+
 @Entry
 @Component
 struct StepsPage {
@@ -11,6 +54,8 @@ struct StepsPage {
   @State minSteps: number = 0;
   @State avgSteps: number = 0;
   @State totalSteps: number = 0;
+  @State avgCalories: number = 0;
+  @State totalDistance: string = '0.0';
 
   async aboutToAppear() {
     // 获取最近 20 条数据用于展示趋势
@@ -37,7 +82,15 @@ struct StepsPage {
       this.minSteps = Math.min(...this.stepsData.map(d => d.steps));
       
       this.totalSteps = this.stepsData.reduce((sum, item) => sum + item.steps, 0);
-      this.avgSteps = Math.round(this.totalSteps / this.stepsData.length);
+      this.avgSteps = this.stepsData.length > 0 ? Math.round(this.totalSteps / this.stepsData.length) : 0;
+      
+      // 计算卡路里和距离
+      const totalCalories = this.stepsData.reduce((sum, item) => sum + (item.calories || 0), 0);
+      this.avgCalories = this.stepsData.length > 0 ? Math.round(totalCalories / this.stepsData.length) : 0;
+      
+      // 估算距离: 步数 * 0.7米 / 1000 = 公里
+      const dist = (this.totalSteps * 0.7 / 1000);
+      this.totalDistance = isNaN(dist) ? '0.0' : dist.toFixed(1);
 
       // 如果最大最小值相等（比如刚开始），手动拉开一点差距防止除以0
       if (this.maxSteps === this.minSteps) {
@@ -193,6 +246,37 @@ struct StepsPage {
         .borderRadius(24)
         .shadow({ radius: 30, color: 'rgba(0,0,0,0.06)', offsetY: 12 })
         .margin({ top: -24 })
+
+        // 3. 底部数据概览
+        Column() {
+          Text('数据概览')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#333')
+            .width('100%')
+            .margin({ bottom: 12 })
+
+          Grid() {
+            GridItem() {
+              StatCard({ title: '平均热量', value: `${this.avgCalories}`, unit: 'kcal', color: '#FF7E5F' })
+            }
+            GridItem() {
+              StatCard({ title: '总里程', value: this.totalDistance, unit: 'km', color: '#FEB47B' })
+            }
+            GridItem() {
+              StatCard({ title: '达标天数', value: `${this.stepsData.filter(d => d.steps >= 5000).length}`, unit: '天', color: '#FF9966' })
+            }
+            GridItem() {
+              StatCard({ title: '活跃时长', value: `${Math.round(this.totalSteps / 100)}`, unit: 'min', color: '#FFCC80' })
+            }
+          }
+          .columnsTemplate('1fr 1fr')
+          .rowsGap(12)
+          .columnsGap(12)
+          .height(200)
+        }
+        .width('100%')
+        .padding({ left: 24, right: 24, top: 24 })
       }
       .width('100%')
       .height('100%')
