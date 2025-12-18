@@ -20,9 +20,9 @@ struct ResetPasswordPage {
 
   private loginVM: LoginVM = new LoginVM();
   private promptAction: PromptAction | null = null;
-  @Provide router: Router | null = null; // 👈 延迟初始化
+  @Provide router: Router | null = null; //  延迟初始化
 
-  // ✅ 安全初始化 UI 上下文（避免 this.getUIContext() 过早调用）
+  // 安全初始化 UI 上下文（避免 this.getUIContext() 过早调用）
   aboutToAppear() {
     const uiContext = this.getUIContext();
     this.router = uiContext.getRouter();

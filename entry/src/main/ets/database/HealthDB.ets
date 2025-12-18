@@ -151,6 +151,120 @@ export class HealthDB {
   // Health Data Operations
   // ==========================================
 
+  /**
+   * 为无设备连接的情况生成过去若干天的模拟步数数据（不包含今天）
+   */
+  public async initMockHealthData(userId: number, days: number = 7): Promise<void> {
+    if (!this.rdbStore || userId <= 0) {
+      return;
+    }
+    try {
+      const oneDay = 24 * 60 * 60 * 1000;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // 今天 00:00
+
+      // 只生成“今天之前”的 days 天
+      for (let i = 1; i <= days; i++) {
+        const day = new Date(today.getTime() - i * oneDay); // 往前推 i 天
+        const start = new Date(day.getTime());
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(day.getTime());
+        end.setHours(23, 59, 59, 999);
+
+        // 该用户这一天已有记录就跳过，避免覆盖真实数据
+        const predicates = new relationalStore.RdbPredicates('health_data');
+        predicates.equalTo('userId', userId);
+        predicates.greaterThanOrEqualTo('timestamp', start.getTime());
+        predicates.lessThanOrEqualTo('timestamp', end.getTime());
+        const result = await this.rdbStore.query(predicates);
+        const hasRow = result.goToFirstRow();
+        result.close();
+        if (hasRow) {
+          continue;
+        }
+
+        // 随机生成比较合理的“当日总步数”：3000 ~ 10000
+        const steps = 3000 + Math.floor(Math.random() * 7000);
+        // 粗略估算当日步行消耗
+        const calories = Math.round(steps * (0.035 + Math.random() * 0.01));
+        const heartRate = 65 + Math.floor(Math.random() * 10);
+        const bloodOxygen = 96 + Math.floor(Math.random() * 3);
+
+        const data = new HealthData(heartRate, steps, calories, bloodOxygen, userId);
+        // 固定在当天 23:00，方便按天汇总
+        const ts = new Date(day.getTime());
+        ts.setHours(23, 0, 0, 0);
+        data.timestamp = ts.getTime();
+
+        await this.insertHealthData(data);
+      }
+    } catch (e) {
+      console.error('initMockHealthData error:', e);
+    }
+  }
+
+  /**
+   * 按天汇总最近 N 天的步数/热量
+   * 每天取该日记录中的最大 steps / calories 作为当日总量
+   */
+  async getDailyStepsSummary(userId: number, days: number = 7): Promise<HealthData[]> {
+    try {
+      const oneDay = 24 * 60 * 60 * 1000;
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      const start = new Date(end.getTime() - (days - 1) * oneDay);
+      start.setHours(0, 0, 0, 0);
+
+      const predicates = new relationalStore.RdbPredicates('health_data');
+      predicates.equalTo('userId', userId);
+      predicates.greaterThanOrEqualTo('timestamp', start.getTime());
+      predicates.orderByAsc('timestamp');
+
+      const result = await this.rdbStore!.query(predicates);
+
+      const dayMap = new Map<string, HealthData>();
+      const idxHr = result.getColumnIndex('heartRate');
+      const idxSteps = result.getColumnIndex('steps');
+      const idxCal = result.getColumnIndex('calories');
+      const idxOxy = result.getColumnIndex('bloodOxygen');
+      const idxUser = result.getColumnIndex('userId');
+      const idxTs = result.getColumnIndex('timestamp');
+
+      while (result.goToNextRow()) {
+        const ts = result.getLong(idxTs);
+        const dateStr = new Date(ts).toISOString().split('T')[0];
+
+        const heartRate = result.getLong(idxHr);
+        const steps = result.getLong(idxSteps);
+        const calories = result.getLong(idxCal);
+        const bloodOxygen = result.getLong(idxOxy);
+        const uid = result.getLong(idxUser);
+
+        const exist = dayMap.get(dateStr);
+        if (!exist) {
+          const d = new HealthData(heartRate, steps, calories, bloodOxygen, uid);
+          d.timestamp = ts; // 用当天最后一条的时间戳
+          dayMap.set(dateStr, d);
+        } else {
+          // 当天用“最大步数/卡路里”作为汇总值
+          exist.steps = Math.max(exist.steps, steps);
+          exist.calories = Math.max(exist.calories, calories);
+          exist.heartRate = heartRate;
+          exist.bloodOxygen = bloodOxygen;
+          exist.timestamp = ts;
+        }
+      }
+      result.close();
+
+      const list = Array.from(dayMap.values());
+      list.sort((a, b) => a.timestamp - b.timestamp); // 按日期升序
+      return list;
+    } catch (e) {
+      console.error('getDailyStepsSummary error:', e);
+      return [];
+    }
+  }
+
   async insertHealthData(data: HealthData): Promise<number> {
     try {
       const value: relationalStore.ValuesBucket = {

@@ -11,6 +11,9 @@ import { HealthVM } from '../viewmodel/HealthVM';
 import { HealthData } from '../../../common/model/HealthData';
 import { BackButton } from '../../../common/components/BackButton';
 import { Router } from '@kit.ArkUI';
+import { HealthDB } from '../../../database/HealthDB';
+import { AuthUtil } from '../../../common/utils/AuthUtil';
+import { Context } from '@kit.AbilityKit';
 
 @Component
 struct DataCard {
@@ -72,6 +75,7 @@ struct DataCard {
 @Component
 struct StatusPage {
   @State currentData: HealthData = new HealthData(0, 0, 0, 0);
+  @State todaySteps: number = 0;
   @State updateInterval: number = 3;
   @State isMonitoring: boolean = false;
   
@@ -80,11 +84,33 @@ struct StatusPage {
 
   aboutToAppear() {
     this.router = this.getUIContext().getRouter();
+    // 初次进入时从数据库加载今日步数，保证与 HomePage / StepsPage 一致
+    this.loadTodaySteps();
     this.toggleMonitoring(true);
   }
 
   aboutToDisappear() {
     this.healthVM.stopMonitoring();
+  }
+
+  private async loadTodaySteps() {
+    const context = this.getUIContext().getHostContext() as Context;
+    const user = await AuthUtil.getLoginUser(context);
+    if (!user) {
+      this.todaySteps = 0;
+      return;
+    }
+
+    // 只补充历史几天的模拟数据，不影响今天
+    await HealthDB.getInstance().initMockHealthData(user.id, 7);
+
+    const list = await HealthDB.getInstance().getDailyStepsSummary(user.id, 7);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayItem = list.find(item => {
+      const d = new Date(item.timestamp);
+      return d.toISOString().split('T')[0] === todayStr;
+    });
+    this.todaySteps = todayItem ? todayItem.steps : 0;
   }
 
   build() {
@@ -146,7 +172,7 @@ struct StatusPage {
           GridItem() {
             DataCard({
               title: '今日步数',
-              value: `${this.currentData.steps}`,
+              value: `${this.todaySteps}`,
               unit: '步',
               themeColor: '#00C853',
               icon: $r('app.media.steps')
@@ -247,6 +273,8 @@ struct StatusPage {
       const context = this.getUIContext().getHostContext() as Context;
       this.healthVM.startMonitoring(context, this.updateInterval * 1000, (data: HealthData) => {
         this.currentData = data;
+        // 每次采样后从数据库重新汇总今日步数，保持三处页面一致
+        this.loadTodaySteps();
       });
     } else {
       this.healthVM.stopMonitoring();
