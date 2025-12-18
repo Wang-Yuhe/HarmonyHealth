@@ -27,7 +27,7 @@ export class HealthDB {
   async initDB(context: Context): Promise<void> {
     try {
       const config: relationalStore.StoreConfig = {
-        name: 'HealthDB.db',
+        name: 'HealthDB_v5.db',
         securityLevel: relationalStore.SecurityLevel.S1,
       };
       this.rdbStore = await relationalStore.getRdbStore(context, config);
