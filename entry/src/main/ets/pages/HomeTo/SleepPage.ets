@@ -1,6 +1,52 @@
 import { BackButton } from '../../common/components/BackButton'
 import { HealthDB } from '../../database/HealthDB';
 import { SleepData } from '../../common/model/SleepData';
+import { AuthUtil } from '../../common/utils/AuthUtil';
+
+@Component
+struct StatCard {
+  @Prop title: string = '';
+  @Prop value: string = '';
+  @Prop unit: string = '';
+  @Prop color: string = '';
+
+  build() {
+    Column() {
+      Row() {
+        Circle({ width: 8, height: 8 })
+          .fill(this.color)
+          .margin({ right: 6 })
+        Text(this.title)
+          .fontSize(12)
+          .fontColor('#666')
+      }
+      .width('100%')
+      .margin({ bottom: 8 })
+
+      Row() {
+        Text(this.value)
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#333')
+        if (this.unit) {
+          Text(` ${this.unit}`)
+            .fontSize(12)
+            .fontColor('#999')
+            .margin({ bottom: 4 })
+        }
+      }
+      .alignItems(VerticalAlign.Bottom)
+    }
+    .width('100%')
+    .height(80)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(16)
+    .padding(16)
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Center)
+    .shadow({ radius: 10, color: 'rgba(0,0,0,0.03)', offsetY: 4 })
+  }
+}
 
 @Entry
 @Component
@@ -9,17 +55,40 @@ struct SleepPage {
   @State maxDuration: number = 600;
   @State avgSleepTime: string = '0.0';
   @State deepSleepRatio: string = '0%';
+  @State sleepScore: number = 0;
+  @State lightSleepRatio: string = '0%';
 
   async aboutToAppear() {
-    this.sleepData = await HealthDB.getInstance().getRecentSleepData(7);
+    const context = this.getUIContext().getHostContext() as Context;
+    const user = await AuthUtil.getLoginUser(context);
+    if (!user) return;
+
+    this.sleepData = await HealthDB.getInstance().getRecentSleepData(user.id, 7);
     if (this.sleepData.length > 0) {
       const max = Math.max(...this.sleepData.map(d => d.totalMinutes));
       if (max > 0) this.maxDuration = max * 1.1;
       const totalMins = this.sleepData.reduce((sum, d) => sum + d.totalMinutes, 0);
-      this.avgSleepTime = (totalMins / this.sleepData.length / 60).toFixed(1);
+      this.avgSleepTime = (this.sleepData.length > 0) ? (totalMins / this.sleepData.length / 60).toFixed(1) : '0.0';
+      
       const totalDeep = this.sleepData.reduce((sum, d) => sum + d.deepSleepMinutes, 0);
+      const totalLight = this.sleepData.reduce((sum, d) => sum + d.lightSleepMinutes, 0);
+      
       if (totalMins > 0) {
         this.deepSleepRatio = Math.round((totalDeep / totalMins) * 100) + '%';
+        this.lightSleepRatio = Math.round((totalLight / totalMins) * 100) + '%';
+        
+        // 简单计算睡眠评分: (时长达标率 * 60) + (深睡占比达标率 * 40)
+        // 假设目标时长 8小时(480分), 目标深睡 25%
+        const avgMins = totalMins / this.sleepData.length;
+        const durationScore = Math.min(100, (avgMins / 480) * 100) * 0.6;
+        const deepScore = Math.min(100, ((totalDeep / totalMins) / 0.25) * 100) * 0.4;
+        
+        const score = durationScore + deepScore;
+        this.sleepScore = isNaN(score) ? 0 : Math.round(score);
+      } else {
+        this.deepSleepRatio = '0%';
+        this.lightSleepRatio = '0%';
+        this.sleepScore = 0;
       }
     }
   }
@@ -167,6 +236,37 @@ struct SleepPage {
         .borderRadius(24)
         .shadow({ radius: 30, color: 'rgba(0,0,0,0.06)', offsetY: 12 })
         .margin({ top: -24 })
+
+        // 3. 底部数据概览
+        Column() {
+          Text('睡眠质量分析')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#333')
+            .width('100%')
+            .margin({ bottom: 12 })
+
+          Grid() {
+            GridItem() {
+              StatCard({ title: '综合评分', value: `${this.sleepScore}`, unit: '分', color: '#3949AB' })
+            }
+            GridItem() {
+              StatCard({ title: '浅睡占比', value: this.lightSleepRatio, unit: '', color: '#7986CB' })
+            }
+            GridItem() {
+              StatCard({ title: '深睡占比', value: this.deepSleepRatio, unit: '', color: '#5C6BC0' })
+            }
+            GridItem() {
+              StatCard({ title: '清醒次数', value: `${Math.round(this.sleepData.reduce((s,d)=>s+(d.awakeMinutes>0?1:0),0)/this.sleepData.length)}`, unit: '次/晚', color: '#FFCC80' })
+            }
+          }
+          .columnsTemplate('1fr 1fr')
+          .rowsGap(12)
+          .columnsGap(12)
+          .height(200)
+        }
+        .width('100%')
+        .padding({ left: 24, right: 24, top: 24 })
       }
       .width('100%')
       .height('100%')

@@ -215,9 +215,12 @@ struct StatusPage {
               .trackColor('#F0F0F0')
               .selectedColor('#5C7CFF')
               .showSteps(true)
-              .onChange((value: number) => {
+              .onChange((value: number, mode: SliderChangeMode) => {
                 this.updateInterval = value;
-                if (this.isMonitoring) this.toggleMonitoring(true);
+                // 仅在滑动结束或点击时重启监测，避免滑动过程中频繁触发数据刷新
+                if (this.isMonitoring && (mode === SliderChangeMode.End || mode === SliderChangeMode.Click)) {
+                  this.toggleMonitoring(true);
+                }
               })
           }
         }
@@ -241,7 +244,8 @@ struct StatusPage {
   toggleMonitoring(enable: boolean) {
     this.isMonitoring = enable;
     if (enable) {
-      this.healthVM.startMonitoring(this.updateInterval * 1000, (data) => {
+      const context = this.getUIContext().getHostContext() as Context;
+      this.healthVM.startMonitoring(context, this.updateInterval * 1000, (data: HealthData) => {
         this.currentData = data;
       });
     } else {
