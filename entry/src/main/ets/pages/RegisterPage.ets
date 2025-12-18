@@ -7,9 +7,11 @@ import { Context } from '@kit.AbilityKit';
 import { Router, PromptAction, window } from '@kit.ArkUI';
 import { LoginVM } from '../features/login/controller/LoginVM';
 import { BackButton } from '../common/components/BackButton';
-import { abilityAccessCtrl } from '@kit.AbilityKit';
-
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
+import { dataSharePredicates } from '@kit.ArkData';
+import { common } from '@kit.AbilityKit'
+import fs from '@ohos.file.fs'; // 文件系统 API
+
 
 interface PhotoSelectOptions {
   MIMEType: string;
@@ -33,6 +35,7 @@ struct RegisterPage {
 
   @State avatarUri: string = '';
 
+
   private loginVM: LoginVM = new LoginVM();
   private promptAction: PromptAction | null = null;
   @Provide router: Router | null = null;
@@ -42,7 +45,17 @@ struct RegisterPage {
     const uiContext = this.getUIContext();
     this.router = uiContext.getRouter();
     this.promptAction = uiContext.getPromptAction();
-    this.avatarUri=$r('app.media.profileIcon').id.toString();
+  }
+
+  aboutToDisappear(): void {
+    if (this.avatarUri && this.avatarUri.startsWith('file://')) {
+      const tempPath = this.avatarUri.slice(7); // 去掉 file://
+      const tempDir  = (this.getUIContext().getHostContext() as common.UIAbilityContext).tempDir;
+      // 只删本次落在 temp 目录的文件，防止误删
+      if (tempPath.startsWith(tempDir)) {
+        fs.unlink(tempPath).catch(() => {}); // 失败就忽略，页面都关了
+      }
+    }
   }
 
   build() {
@@ -147,14 +160,18 @@ struct RegisterPage {
   buildAvatarPicker() {
     Row() {
       // 左侧：头像预览（圆形）
-      Image(this.avatarUri)
+      Image(
+        this.avatarUri && this.avatarUri !== ''
+          ? this.avatarUri                     // ① 先当字符串路径用
+          : $r('app.media.profileIcon')        // ② 空或失败时回资源 ID
+      )
         .width(40)
         .height(40)
-        .borderRadius(20) // 圆形
+        .borderRadius(20)
         .objectFit(ImageFit.Cover)
         .onError(() => {
-          // 加载失败时回退到默认头像
-          this.avatarUri = $r('app.media.profileIcon').id.toString();
+          // ③ 连资源 ID 也失败（基本不会），再落回默认资源
+          this.avatarUri = '';                 // 标记为空，下次走资源分支
         })
 
       // 右侧：提示文字
@@ -175,84 +192,113 @@ struct RegisterPage {
     .border({ width: 1, color: '#E0E0E0' })
     .borderRadius(12)
     .justifyContent(FlexAlign.SpaceBetween) // 自动分配左右空间
-    .onClick(() => this.pickImage())
+    .onClick(() => this.pickAvatar())
     .margin({ bottom: 16 })
   }
 
-  // ===== 新增：检查并申请相册读取权限 =====
-  private async checkAndRequestPermission(): Promise<boolean> {
-    const atManager = abilityAccessCtrl.createAtManager();
-
-    const hostContext = this.getUIContext().getHostContext() as Context;
-    const tokenId = hostContext?.applicationInfo?.accessTokenId ?? 0;
-    const permission = 'ohos.permission.READ_IMAGEVIDEO';
-
-    // 检查是否已授权
-    const authStatus = await atManager.checkAccessToken(tokenId, permission);
-    if (authStatus === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
-      return true;
-    }
-
-    // 未授权，发起请求
-    try {
-      const requestResult = await atManager.requestPermissionsFromUser(hostContext, [permission]);
-      return requestResult.authResults[0] === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED;
-    } catch (err) {
-      console.error('Permission request failed:', err);
-      return false;
-    }
-  }
 
   // ===== 新增：调起系统图片选择器 =====
 
-  private async pickImage() {
-    const hasPermission = await this.checkAndRequestPermission();
-    if (!hasPermission) {
-      this.showToast('需要相册访问权限才能上传头像');
-      return;
-    }
-
+  private async pickAvatar() {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     try {
-      // ✅ 直接调用 select（注意：不是 createPhotoPicker）
-      const options: PhotoSelectOptions = {
-        MIMEType: 'image/*', // ✅ 使用标准 MIME 字符串（更兼容）
-        maxSelectNumber: 1
-      };
+      /* ========= 1. 选图 ========= */
+      const selectOptions = new photoAccessHelper.PhotoSelectOptions();
+      selectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE;
+      selectOptions.maxSelectNumber = 1;
+      const picker = new photoAccessHelper.PhotoViewPicker();
+      const selectResult = await picker.select(selectOptions);
+      if (!selectResult.photoUris?.length) return;
 
-      const photoAccessor =new photoAccessHelper.PhotoViewPicker();
-      const photoAccessOptions = new photoAccessHelper.PhotoSelectOptions();
-      photoAccessOptions.maxSelectNumber=1;
+      /* ========= 2. 取 PhotoAsset ========= */
+      const uri = selectResult.photoUris[0];
+      console.info('>>> 1. select success, uri=' + uri);
 
-      const result: photoAccessHelper.PhotoSelectResult = await photoAccessor.select(photoAccessOptions);
+      const phHelper = photoAccessHelper.getPhotoAccessHelper(context);
+      const predicates = new dataSharePredicates.DataSharePredicates();
+      predicates.equalTo(photoAccessHelper.PhotoKeys.URI, uri);
+      const fetchResult = await phHelper.getAssets({
+        fetchColumns: [],
+        predicates
+      });
+      const asset = await fetchResult.getFirstObject();
+      fetchResult.close();
 
-      if (!result || !result.photoUris || result.photoUris.length === 0) {
-        this.showToast('未选择图片');
-        return;
+      /* ========= 3. 读原始 ArrayBuffer ========= */
+       const imageBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        photoAccessHelper.MediaAssetManager.requestImageData(
+          context,
+          asset,
+          { deliveryMode: photoAccessHelper.DeliveryMode.HIGH_QUALITY_MODE },
+          {
+            onDataPrepared(data) {
+              data ? resolve(data) : reject(new Error('empty buffer'));
+            }
+          } as photoAccessHelper.MediaAssetDataHandler<ArrayBuffer>
+        );
+      });
+      console.info('>>> 2. imageBuffer length=' + imageBuffer.byteLength);
+
+      /* ========= 4. 立即持久化：内存 → 私有目录 ========= */
+      const tempPath = `${context.tempDir}/temp_avatar.jpg`;
+      try { await fs.access(tempPath); } catch { await fs.mkdir(tempPath, true); }
+      const destPath = `${tempPath}${'temp_avatar'}.jpg`;   // 永不重名
+
+      const file = await fs.open(destPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY);
+      try {
+        await fs.write(file.fd, imageBuffer);   // 裸 buffer，不带任何 options
+      } finally {
+        await fs.close(file.fd);
       }
 
-      const asset = result.photoUris[0];
-      if (!asset|| typeof asset!== 'string') {
-        this.showToast('图片 URI 无效');
-        return;
-      }
+      /* ========= 5. 仅把持久路径抛给 UI ========= */
+      this.avatarUri = `file://${destPath}`;
+      console.info('>>> 3. persistentUri = ' + this.avatarUri);
 
-      const context = this.getUIContext().getHostContext() as Context;
-      const targetUsername = this.username || `temp_${Date.now()}`;
-      const savedUri = await this.loginVM.saveUserAvatar(context, targetUsername, asset);
-
-      if (savedUri) {
-        this.avatarUri = savedUri;
-        this.showToast('头像上传成功');
-      } else {
-        this.showToast('头像保存失败');
-      }
-
-    } catch (err) {
-      console.error('[pickImage] Error:', err);
-      this.showToast(`操作失败: ${(err as Error).message}`);
+    } catch (e) {
+      console.error('pickAvatar error:', e);
+      this.showToast('头像选择失败');
     }
   }
 
+
+  /**
+   * 把临时头像文件移动到正式目录，文件名固定为 avatar_<用户名>.jpg
+   * 成功返回新的 file:// 路径；失败返回空串。
+   */
+  private async moveAvatarToPersistent(): Promise<string> {
+    if (!this.avatarUri || !this.avatarUri.startsWith('file://')) {
+      // 没选图或路径异常
+      return '';
+    }
+
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+
+    try {
+      /* 1. 源文件路径（去掉 file:// 前缀） */
+      const srcPath = this.avatarUri.slice(7); // /data/storage/.../temp/xxx.jpg
+
+      /* 2. 目标目录与文件（正式目录） */
+      const destDir  = `${context.filesDir}/avatars/`;
+      const destPath = `${destDir}avatar_${this.username}.jpg`; // 固定文件名
+
+      /* 3. 确保目标目录存在 */
+      try { await fs.access(destDir); } catch { await fs.mkdir(destDir, true); }
+
+
+
+      /* 5. 原子移动（同盘符下 rename 即可） */
+      await fs.moveFile(srcPath, destPath);
+
+      /* 6. 返回新的持久化 URI */
+      const persistentUri = `file://${destPath}`;
+      console.info('[moveAvatar] success >>>', persistentUri);
+      return persistentUri;
+    } catch (e) {
+      console.error('[moveAvatar] failed:', e);
+      return '';
+    }
+  }
 
   private toggleMode() {
     this.isRegisterMode = !this.isRegisterMode;
@@ -265,7 +311,6 @@ struct RegisterPage {
     }
 
     if (this.isRegisterMode) {
-
       if (this.password !== this.confirmPassword) {
         this.showToast('两次密码输入不一致');
         return;
@@ -277,6 +322,14 @@ struct RegisterPage {
 
       try {
         const context = this.getUIContext().getHostContext() as Context;
+
+        /* === 头像落盘：内存 Buffer → 持久文件 === */
+        let avatarPath:string='';
+        if (this.avatarUri) {
+          avatarPath=await this.moveAvatarToPersistent();
+        }
+
+        /* === 正式注册 === */
         const success = await this.loginVM.register(
           context,
           this.username,
@@ -284,10 +337,15 @@ struct RegisterPage {
           this.email,
           this.securityQuestion,
           this.securityAnswer,
-          this.avatarUri
+          avatarPath
         );
+
         if (success) {
           this.showToast('注册成功');
+          /* === 清掉临时文件 === */
+          if (this.avatarUri.startsWith(`file://${context.tempDir}`)) {
+            try { await fs.unlink(this.avatarUri.slice(7)); } catch {}
+          }
           this.router?.back();
         } else {
           this.showToast('用户已存在');
@@ -296,6 +354,7 @@ struct RegisterPage {
         this.showToast('注册异常');
       }
     } else {
+      /* ===== 注销分支无改动 ===== */
       try {
         const context = this.getUIContext().getHostContext() as Context;
         const success = await this.loginVM.deleteUser(context, this.username, this.password);

@@ -108,6 +108,7 @@ struct HealthItemComponent {
 struct HomePage {
   @State currentData: HealthData = new HealthData(0, 0, 0, 0);
   @State todaySleep: SleepData | null = null;
+  @State todaySteps: number = 0; // 从数据库加载“今日步数”
   private healthVM: HealthVM = new HealthVM();
 
   private STEP_GOAL: number = 5000;
@@ -149,7 +150,30 @@ struct HomePage {
     const context = this.getUIContext().getHostContext() as Context;
     const lastData = await this.healthVM.loadLastData(context);
     if (lastData) this.currentData = lastData;
+
+    // 从数据库加载“今日步数”
+    await this.loadTodaySteps();
     await this.loadSleepData();
+  }
+
+  private async loadTodaySteps() {
+    const context = this.getUIContext().getHostContext() as Context;
+    const user = await AuthUtil.getLoginUser(context);
+    if (!user) {
+      this.todaySteps = 0;
+      return;
+    }
+
+    // 只补历史几天的模拟数据，不影响今天
+    await HealthDB.getInstance().initMockHealthData(user.id, 7);
+
+    const list = await HealthDB.getInstance().getDailyStepsSummary(user.id, 7);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayItem = list.find(item => {
+      const d = new Date(item.timestamp);
+      return d.toISOString().split('T')[0] === todayStr;
+    });
+    this.todaySteps = todayItem ? todayItem.steps : 0;
   }
 
   async loadSleepData() {
@@ -164,7 +188,12 @@ struct HomePage {
 
   onPageShow() {
     const context = this.getUIContext().getHostContext() as Context;
-    this.healthVM.startMonitoring(context, 3000, (data: HealthData) => { this.currentData = data; });
+    this.healthVM.startMonitoring(context, 3000, async (data: HealthData) => {
+      // 实时监测：仅更新实时心率/血氧等
+      this.currentData = data;
+      // 统一从数据库“日汇总”读取今日步数，保证与 StepsPage 完全一致
+      await this.loadTodaySteps();
+    });
     this.loadSleepData();
   }
 
@@ -320,7 +349,7 @@ struct HomePage {
             Row({ space: 14 }) {
               HealthItemComponent({
                 title: '今日步数',
-                value: `${this.currentData.steps}`,
+                value: `${this.todaySteps}`,
                 unit: '步',
                 // 保持：今日步数边框颜色为橙红色 (#FF7043)
                 themeColor: '#FF7043',

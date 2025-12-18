@@ -33,9 +33,19 @@ export class DeviceService {
         let steps = this.userSteps.get(userId) || 0;
         let calories = this.userCalories.get(userId) || 0;
 
-        // 模拟数据变化
-        steps += Math.floor(Math.random() * 10);
-        calories += Math.floor(Math.random() * 2);
+        // 更贴近真实计步器的策略：
+        // 大部分时间不动，只有部分采样点有少量增长
+        const isMoving = Math.random() < 0.3; // 约 30% 采样点在走路
+        let stepInc = 0;
+        let calInc = 0;
+        if (isMoving) {
+          // 如果 3 秒采样一次，这里平均每分钟增加几十步，比较合理
+          stepInc = 1 + Math.floor(Math.random() * 5); // 1~5 步
+          calInc = Math.max(1, Math.round(stepInc * 0.04));
+        }
+
+        steps += stepInc;
+        calories += calInc;
         
         // 更新 Map
         this.userSteps.set(userId, steps);

@@ -3,6 +3,7 @@ import { BackButton } from '../../common/components/BackButton'
 import { HealthDB } from '../../database/HealthDB';
 import { HealthData } from '../../common/model/HealthData';
 import { AuthUtil } from '../../common/utils/AuthUtil';
+import { Context } from '@kit.AbilityKit'; // ✅ 补上 Context 引用
 
 @Component
 struct StatCard {
@@ -51,6 +52,7 @@ struct StatCard {
 @Component
 struct StepsPage {
   @State stepsData: HealthData[] = [];
+  @State todaySteps: number = 0;     // 👈 今日步数（只来自数据库）
   @State maxSteps: number = 1;
   @State minSteps: number = 0;
   @State avgSteps: number = 0;
@@ -58,50 +60,54 @@ struct StepsPage {
   @State avgCalories: number = 0;
   @State totalDistance: string = '0.0';
 
-  async aboutToAppear() {
+  private async refreshData() {
     const context = this.getUIContext().getHostContext() as Context;
     const user = await AuthUtil.getLoginUser(context);
     if (!user) return;
 
-    // 获取最近 20 条数据用于展示趋势
-    let rawData = await HealthDB.getInstance().getRecentHealthData(user.id, 20);
-    
-    if (rawData.length > 0) {
-      // 1. 确保按时间正序排列 (旧 -> 新)，以便图表从左到右显示
-      rawData.sort((a, b) => a.timestamp - b.timestamp);
+    // 只为“过去几天”补模拟数据，不写今天
+    await HealthDB.getInstance().initMockHealthData(user.id, 7);
 
-      // 2. 修复测试数据时间戳集中在同一天的问题
-      // 强制将数据分散到最近 N 天，最后一个数据点为“今天”
-      const now = new Date().getTime();
-      const oneDay = 24 * 60 * 60 * 1000;
-      
-      this.stepsData = rawData.map((item, index) => {
-        // 倒推天数：最后一个元素 (index = length-1) 是 0 天前 (今天)
-        const daysAgo = rawData.length - 1 - index;
-        item.timestamp = now - (daysAgo * oneDay);
-        return item;
+    // 从数据库按天汇总最近 7 天
+    this.stepsData = await HealthDB.getInstance().getDailyStepsSummary(user.id, 7);
+
+    if (this.stepsData.length > 0) {
+      // === 核心：从 DB 汇总结果里拿“今天”的步数 ===
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayItem = this.stepsData.find(item => {
+        const d = new Date(item.timestamp);
+        return d.toISOString().split('T')[0] === todayStr;
       });
+      this.todaySteps = todayItem ? todayItem.steps : 0;
 
-      // 3. 计算统计数据
+      // 下面这些统计依然基于 DB 的 7 天汇总
       this.maxSteps = Math.max(...this.stepsData.map(d => d.steps));
       this.minSteps = Math.min(...this.stepsData.map(d => d.steps));
-      
+
       this.totalSteps = this.stepsData.reduce((sum, item) => sum + item.steps, 0);
-      this.avgSteps = this.stepsData.length > 0 ? Math.round(this.totalSteps / this.stepsData.length) : 0;
-      
-      // 计算卡路里和距离
+      this.avgSteps = Math.round(this.totalSteps / this.stepsData.length);
+
       const totalCalories = this.stepsData.reduce((sum, item) => sum + (item.calories || 0), 0);
-      this.avgCalories = this.stepsData.length > 0 ? Math.round(totalCalories / this.stepsData.length) : 0;
-      
-      // 估算距离: 步数 * 0.7米 / 1000 = 公里
+      this.avgCalories = Math.round(totalCalories / this.stepsData.length);
+
       const dist = (this.totalSteps * 0.7 / 1000);
       this.totalDistance = isNaN(dist) ? '0.0' : dist.toFixed(1);
 
-      // 如果最大最小值相等（比如刚开始），手动拉开一点差距防止除以0
       if (this.maxSteps === this.minSteps) {
         this.minSteps = Math.max(0, this.maxSteps - 100);
       }
+    } else {
+      this.todaySteps = 0;
     }
+  }
+
+  async aboutToAppear() {
+    await this.refreshData();
+  }
+
+  onPageShow() {
+    // 每次返回本页时重新从数据库拉一遍，保证“当前步数”与 DB 同步
+    this.refreshData();
   }
 
   // 动态计算高度，放大变化趋势
@@ -119,7 +125,7 @@ struct StepsPage {
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
       Column() {
-        // 1. 顶部 Hero Card (活力日落渐变)
+        // 1. 顶部 Hero Card
         Column() {
           // 标题栏占位
           // 使用 Stack 将 BackButton 整合进标题栏，防止遮挡
@@ -143,17 +149,17 @@ struct StepsPage {
           // 核心数据展示
           Row() {
             Column() {
-              Text('平均步数')
+              Text('今日步数')                       //  改文案
                 .fontSize(14)
                 .fontColor('rgba(255,255,255,0.9)')
-              Text(`${this.avgSteps}`)
-                .fontSize(40) // 更大
+              Text(`${this.todaySteps}`)             // 直接显示 DB 中的今日步数
+                .fontSize(40)
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#FFFFFF')
                 .margin({ top: 4 })
             }
             .alignItems(HorizontalAlign.Start)
-            
+
             Blank()
 
             Column() {
