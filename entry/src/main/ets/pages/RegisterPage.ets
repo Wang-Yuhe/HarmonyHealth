@@ -240,9 +240,9 @@ struct RegisterPage {
       console.info('>>> 2. imageBuffer length=' + imageBuffer.byteLength);
 
 
-      const tempPath = `${context.tempDir}/temp_avatar.jpg`;
+      const tempPath = `${context.tempDir}`;
       try { await fs.access(tempPath); } catch { await fs.mkdir(tempPath, true); }
-      const destPath = `${tempPath}${'temp_avatar'}.jpg`;   // 永不重名
+      const destPath = `${tempPath}${'temp_avatar'}`;   // 永不重名
 
       const file = await fs.open(destPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY);
       try {
@@ -279,11 +279,11 @@ struct RegisterPage {
       const srcPath = this.avatarUri.slice(7); // /data/storage/.../temp/xxx.jpg
 
       /* 2. 目标目录与文件（正式目录） */
-      const destDir  = `${context.filesDir}/avatars/`;
+      const destDir  = `${context.filesDir}`;
       const destPath = `${destDir}avatar_${this.username}.jpg`; // 固定文件名
 
       /* 3. 确保目标目录存在 */
-      try { await fs.access(destDir); } catch { await fs.mkdir(destDir, true); }
+      // try { await fs.access(destDir); } catch { await fs.mkdir(destDir, true);  }
 
 
 
