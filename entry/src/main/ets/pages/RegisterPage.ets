@@ -239,7 +239,7 @@ struct RegisterPage {
       });
       console.info('>>> 2. imageBuffer length=' + imageBuffer.byteLength);
 
-      /* ========= 4. 立即持久化：内存 → 私有目录 ========= */
+
       const tempPath = `${context.tempDir}/temp_avatar.jpg`;
       try { await fs.access(tempPath); } catch { await fs.mkdir(tempPath, true); }
       const destPath = `${tempPath}${'temp_avatar'}.jpg`;   // 永不重名
