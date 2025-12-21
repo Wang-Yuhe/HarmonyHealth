@@ -263,7 +263,7 @@ struct RegisterPage {
 
 
   /**
-   * 把临时头像文件移动到正式目录，文件名固定为 avatar_<用户名>.jpg
+   * 把临时头像文件移动到正式目录，文件名固定为 avatar_<用户名>
    * 成功返回新的 file:// 路径；失败返回空串。
    */
   private async moveAvatarToPersistent(): Promise<string> {
@@ -276,11 +276,11 @@ struct RegisterPage {
 
     try {
       /* 1. 源文件路径（去掉 file:// 前缀） */
-      const srcPath = this.avatarUri.slice(7); // /data/storage/.../temp/xxx.jpg
+      const srcPath = this.avatarUri.slice(7); // /data/storage/.../temp/
 
       /* 2. 目标目录与文件（正式目录） */
       const destDir  = `${context.filesDir}`;
-      const destPath = `${destDir}avatar_${this.username}.jpg`; // 固定文件名
+      const destPath = `${destDir}/avatar_${this.username}`; // 固定文件名
 
       /* 3. 确保目标目录存在 */
       // try { await fs.access(destDir); } catch { await fs.mkdir(destDir, true);  }

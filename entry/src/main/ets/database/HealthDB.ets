@@ -420,6 +420,49 @@ export class HealthDB {
     }
   }
 
+  // ==================== 用户名/邮箱更新 ====================
+  /**
+   * 修改用户名
+   * @param oldName 原用户名（用于定位）
+   * @param newName 新用户名
+   */
+  async updateUsername(oldName: string, newName: string): Promise<boolean> {
+    if (!this.rdbStore || !oldName || !newName) return false;
+    try {
+      const predicates = new relationalStore.RdbPredicates('users');
+      predicates.equalTo('username', oldName);          // 找到旧记录
+      const value: relationalStore.ValuesBucket = {
+        username: newName                                // 改成新名字
+      };
+      const rows = await this.rdbStore.update(value, predicates);
+      return rows > 0;
+    } catch (e) {
+      console.error('updateUsername error:', e);
+      return false;
+    }
+  }
+
+  /**
+   * 修改邮箱
+   * @param username 当前登录用户名（定位用）
+   * @param newEmail 新邮箱地址
+   */
+  async updateEmail(username: string, newEmail: string): Promise<boolean> {
+    if (!this.rdbStore || !username || !newEmail) return false;
+    try {
+      const predicates = new relationalStore.RdbPredicates('users');
+      predicates.equalTo('username', username);
+      const value: relationalStore.ValuesBucket = {
+        email: newEmail
+      };
+      const rows = await this.rdbStore.update(value, predicates);
+      return rows > 0;
+    } catch (e) {
+      console.error('updateEmail error:', e);
+      return false;
+    }
+  }
+
   async setUserAvatar(username: string, avatarPath: string): Promise<boolean> {
     if (!this.rdbStore || !username || !avatarPath) {
       return false;

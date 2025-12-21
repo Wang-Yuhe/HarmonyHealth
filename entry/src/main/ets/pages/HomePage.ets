@@ -264,19 +264,18 @@ struct HomePage {
 
           Blank()
 
-          // 退出按钮 - 悬浮玻璃质感
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            Image($r('app.media.logout'))
-              .width(20)
-              .height(20)
-              .fillColor('#5C7CFF') 
-          }
-          .width(42)
-          .height(42)
-          .backgroundColor('rgba(255,255,255,0.8)')
-          .backdropBlur(10)
-          .shadow({ radius: 10, color: 'rgba(92, 124, 255, 0.2)', offsetY: 4 }) 
-          .onClick(() => { this.handleLogout() })
+          // 头像按钮 - 悬浮玻璃质感
+          Image(AppStorage.get('avatar') ?? $r('app.media.profileIcon'))
+            .width(42)
+            .height(42)
+            .borderRadius(21)                       // 圆形
+            .objectFit(ImageFit.Cover)
+            .border({ width: 2, color: '#80FFFFFF' }) // 白色描边
+            .backdropBlur(10)
+            .shadow({ radius: 10, color: 'rgba(92, 124, 255, 0.2)', offsetY: 4 })
+            .onClick(() => {
+              this.getUIContext().getRouter().pushUrl({ url: 'pages/UserCenterPage' });
+            })
         }
         .width('100%')
         .padding({ left: 24, right: 24, top: 20, bottom: 10 })

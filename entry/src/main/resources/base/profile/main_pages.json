@@ -13,6 +13,7 @@
     "pages/HomeTo/DiseasePage",
     "pages/HomeTo/SleepPage",
     "pages/HomeTo/StepsPage",
-    "features/healthStatus/view/StatusPage" 
+    "features/healthStatus/view/StatusPage",
+    "pages/UserCenterPage"
   ]
 }
