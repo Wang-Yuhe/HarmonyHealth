@@ -56,3 +56,13 @@ export const CREATE_MEDICAL_TABLE = `
     hospital TEXT
   );
 `;
+
+export const CREATE_BODY_INFO_TABLE = `
+  CREATE TABLE IF NOT EXISTS body_info (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER,
+    label TEXT,
+    value TEXT,
+    UNIQUE(userId, label)
+  )
+`;

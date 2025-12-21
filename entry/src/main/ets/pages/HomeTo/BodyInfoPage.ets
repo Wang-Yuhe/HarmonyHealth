@@ -1,5 +1,6 @@
 // BodyInfoPage.ets
 import { BackButton } from '../../common/components/BackButton'
+import { HealthDB } from '../../database/HealthDB'
 
 interface BodyInfoItem {
   label: string
@@ -28,6 +29,7 @@ struct BodyInfoPage {
     { label: '脚长', value: '26 cm' },
     { label: '脚宽', value: '9.5 cm' }
   ]
+  @StorageProp('currentUserId') userId: number = 1
   @StorageLink('BodyInfoList') bodyInfoList: BodyInfoItem[] = []
   private sections: BodyInfoSection[] = [
     { title: '基础数据', keys: ['性别', '身高', '体重'] },
@@ -38,7 +40,17 @@ struct BodyInfoPage {
   @State private editingKey: string = ''
   @State private editValue: string = ''
 
-  aboutToAppear() {
+  async aboutToAppear() {
+    // 1. 先尝试从数据库获取
+    let data = await HealthDB.getInstance().getBodyInfo(this.userId)
+
+    if (data && data.length > 0) {
+      this.bodyInfoList = data
+    } else {
+      // 2. 如果数据库没数据，初始化默认值并存入数据库
+      this.bodyInfoList = [...this.defaultBodyInfoList]
+      await HealthDB.getInstance().saveBodyInfo(this.userId, this.bodyInfoList)
+    }
     if (!this.bodyInfoList || this.bodyInfoList.length === 0) {
       this.bodyInfoList = [...this.defaultBodyInfoList]
     }
@@ -96,15 +108,26 @@ struct BodyInfoPage {
     this.editingKey = ''
     this.editValue = ''
   }
-
-  private saveEdit(label: string): void {
-    this.bodyInfoList = this.bodyInfoList.map(item => {
+  private async saveEdit(label: string) {
+    // 更新本地列表
+    console.info('准备保存数据...');
+    const newList = this.bodyInfoList.map(item => {
       if (item.label === label) {
-        return { label: item.label, value: this.editValue }
+        return { label: item.label, value: this.editValue } as BodyInfoItem
       }
       return item
     })
-    this.cancelEdit()
+
+    this.bodyInfoList = newList
+
+    // 同步到数据库
+    // 检查存储结果
+    try {
+      await HealthDB.getInstance().saveBodyInfo(this.userId, this.bodyInfoList);
+      console.info('数据库保存指令已发送');
+    } catch (e) {
+      console.error('调用存储方法崩溃:', e);
+    }
   }
 
   @Builder

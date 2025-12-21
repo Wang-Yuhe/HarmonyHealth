@@ -10,8 +10,10 @@ import { User } from '../common/model/User';
 import { HealthData } from '../common/model/HealthData';
 import { SleepData } from '../common/model/SleepData';
 import { CREATE_USER_TABLE, CREATE_HEALTH_TABLE, CREATE_SLEEP_TABLE,
-  CREATE_MEDICAL_TABLE } from './Migrations/InitMigration';
+  CREATE_MEDICAL_TABLE,
+  CREATE_BODY_INFO_TABLE} from './Migrations/InitMigration';
 import { MedicalRecord } from '../common/model/MedicalRecordModel';
+import { BodyInfoItem } from '../common/model/BodyInfoItem';
 
 export class HealthDB {
   private static instance: HealthDB;
@@ -35,6 +37,7 @@ export class HealthDB {
       await this.rdbStore.executeSql(CREATE_HEALTH_TABLE);
       await this.rdbStore.executeSql(CREATE_SLEEP_TABLE);
       await this.rdbStore.executeSql(CREATE_MEDICAL_TABLE);
+      await this.rdbStore.executeSql(CREATE_BODY_INFO_TABLE);
       
       // 注意：现在 initMockSleepData 需要传入 userId，所以这里不再自动调用
       // 而是由上层业务在登录后或页面加载时调用
@@ -561,6 +564,54 @@ export class HealthDB {
     } catch (e) {
       console.error('updateMedicalRecord error:', e);
       return false;
+    }
+  }
+
+  // 新增身体数据的处理
+  async saveBodyInfo(userId: number, items: BodyInfoItem[]): Promise<void> {
+    if (!this.rdbStore || userId <= 0) return;
+
+    // 使用事务批量处理，提高性能
+    try {
+      this.rdbStore.beginTransaction();
+      for (const item of items) {
+        const value: relationalStore.ValuesBucket = {
+          userId: userId,
+          label: item.label,
+          value: item.value
+        };
+        // 冲突即替换，保证每个 label 只有一条数据
+        await this.rdbStore.insert('body_info', value, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+      }
+      this.rdbStore.commit();
+    } catch (e) {
+      console.error('saveBodyInfo error:', e);
+      this.rdbStore.rollBack();
+    }
+  }
+
+  async getBodyInfo(userId: number): Promise<BodyInfoItem[]> {
+    if (!this.rdbStore) return [];
+    try {
+      const predicates = new relationalStore.RdbPredicates('body_info');
+      predicates.equalTo('userId', userId);
+      const result = await this.rdbStore.query(predicates);
+      const list: BodyInfoItem[] = [];
+      interface BodyInfoItem {
+        label: string;
+        value: string;
+      }
+      while (result.goToNextRow()) {
+        list.push({
+          label: result.getString(result.getColumnIndex('label')),
+          value: result.getString(result.getColumnIndex('value'))
+        });
+      }
+      result.close();
+      return list;
+    } catch (e) {
+      console.error('getBodyInfo error:', e);
+      return [];
     }
   }
 }
