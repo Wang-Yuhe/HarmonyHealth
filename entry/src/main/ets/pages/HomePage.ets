@@ -144,7 +144,8 @@ struct HomePage {
   private async executeLogoutAction(): Promise<void> {
     // 清理内存状态 (AppStorage)
     AppStorage.setOrCreate('isLogin', false);
-    AppStorage.setOrCreate('userInfo', null); // 显式置空用户信息
+    AppStorage.setOrCreate('currentUser', null); // 显式置空用户信息
+    AppStorage.setOrCreate('BodyInfoList', []);
 
     // 安全路由跳转
     // 使用 replaceUrl 确保用户无法点击“返回”回到私密页面

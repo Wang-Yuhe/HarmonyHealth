@@ -11,9 +11,12 @@ import { HealthData } from '../common/model/HealthData';
 import { SleepData } from '../common/model/SleepData';
 import { CREATE_USER_TABLE, CREATE_HEALTH_TABLE, CREATE_SLEEP_TABLE,
   CREATE_MEDICAL_TABLE,
-  CREATE_BODY_INFO_TABLE} from './Migrations/InitMigration';
+  CREATE_BODY_INFO_TABLE,
+  DROP_BODY_INFO_TABLE} from './Migrations/InitMigration';
 import { MedicalRecord } from '../common/model/MedicalRecordModel';
 import { BodyInfoItem } from '../common/model/BodyInfoItem';
+import { it } from '@ohos/hypium';
+import List from '@ohos.util.List';
 
 export class HealthDB {
   private static instance: HealthDB;
@@ -568,35 +571,66 @@ export class HealthDB {
   }
 
   // 新增身体数据的处理
-  async saveBodyInfo(userId: number, items: BodyInfoItem[]): Promise<void> {
-    if (!this.rdbStore || userId <= 0) return;
+  // 修改：参数由 userId: number 改为 userName: string
+  async saveBodyInfo(userName: string, items: BodyInfoItem[]): Promise<void> {
+    // 基础校验：确保数据库已打开且用户名不为空
+    if (!this.rdbStore || !userName) return;
 
-    // 使用事务批量处理，提高性能
     try {
       this.rdbStore.beginTransaction();
       for (const item of items) {
         const value: relationalStore.ValuesBucket = {
-          userId: userId,
-          label: item.label,
-          value: item.value
+          // 假设数据库表字段名仍叫 userName 或已改为 userName
+          'userName': userName,
+          'label': item.label,
+          'value': item.value
         };
-        // 冲突即替换，保证每个 label 只有一条数据
+        console.info(`saveBodyInfo-尝试保存用户 ${userName} 的身体数据:${item.label}: ${item.value} `);
+        // 使用 REPLACE 策略：同一用户、同一 label 的数据会被覆盖更新
         await this.rdbStore.insert('body_info', value, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
       }
       this.rdbStore.commit();
+      console.info(`成功保存用户 ${userName} 的身体数据`);
     } catch (e) {
       console.error('saveBodyInfo error:', e);
       this.rdbStore.rollBack();
     }
   }
 
-  async getBodyInfo(userId: number): Promise<BodyInfoItem[]> {
-    if (!this.rdbStore) return [];
+  async checkColumns(): Promise<void> {
+    if (!this.rdbStore) return;
+    let predicates = new relationalStore.RdbPredicates('body_info');
+    let result = await this.rdbStore.query(predicates);
+    // 获取数据库真实的所有列名
+    console.info('数据库真实列名: ' + result.columnNames.join(', '));
+    result.close();
+  }
+
+  async reconstructBodyInfo(): Promise<void> {
+    if (!this.rdbStore) return;
+    await this.rdbStore.executeSql(DROP_BODY_INFO_TABLE);
+    await this.rdbStore.executeSql(CREATE_BODY_INFO_TABLE);
+    let predicates = new relationalStore.RdbPredicates('body_info');
+    let result = await this.rdbStore.query(predicates);
+    // 获取数据库真实的所有列名
+    console.info('数据库真实列名: ' + result.columnNames.join(', '));
+    result.close();
+  }
+
+  // 修改：参数由 userId: number 改为 userName: string
+  async getBodyInfo(userName: string): Promise<BodyInfoItem[]> {
+    if (!this.rdbStore || !userName) return [];
+    console.info(`getBodyInfo-1111`)
+
     try {
       const predicates = new relationalStore.RdbPredicates('body_info');
-      predicates.equalTo('userId', userId);
+      // 关键修改：第一个参数必须是数据库中的字段名 'userName'
+      // 第二个参数是传入的变量 userName
+      predicates.equalTo('userName', userName);
       const result = await this.rdbStore.query(predicates);
       const list: BodyInfoItem[] = [];
+
+      console.info(`getBodyInfo-2222，${result.getColumnName(0)}`)
       interface BodyInfoItem {
         label: string;
         value: string;
@@ -606,7 +640,9 @@ export class HealthDB {
           label: result.getString(result.getColumnIndex('label')),
           value: result.getString(result.getColumnIndex('value'))
         });
+        console.info(`getBodyInfo-查询${userName}的数据,${result.getString(result.getColumnIndex('label'))}: ${result.getString(result.getColumnIndex('value'))}`);
       }
+      console.info(`getBodyInfo-3333`)
       result.close();
       return list;
     } catch (e) {

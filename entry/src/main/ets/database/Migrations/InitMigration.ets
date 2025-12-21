@@ -60,9 +60,13 @@ export const CREATE_MEDICAL_TABLE = `
 export const CREATE_BODY_INFO_TABLE = `
   CREATE TABLE IF NOT EXISTS body_info (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER,
+    userName TEXT,
     label TEXT,
     value TEXT,
-    UNIQUE(userId, label)
+    UNIQUE(userName, label)
   )
+`;
+
+export const DROP_BODY_INFO_TABLE = `
+  DROP TABLE body_info
 `;
