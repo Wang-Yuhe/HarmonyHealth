@@ -141,9 +141,18 @@ struct HomePage {
     })
   }
 
-  private executeLogoutAction(): void {
-    AppStorage.SetOrCreate('isLogin', false);
-    this.getUIContext().getRouter().replaceUrl({ url: 'pages/LoginPage' })
+  private async executeLogoutAction(): Promise<void> {
+    // 清理内存状态 (AppStorage)
+    AppStorage.setOrCreate('isLogin', false);
+    AppStorage.setOrCreate('userInfo', null); // 显式置空用户信息
+
+    // 安全路由跳转
+    // 使用 replaceUrl 确保用户无法点击“返回”回到私密页面
+    this.getUIContext().getRouter().replaceUrl({
+      url: 'pages/LoginPage'
+    }).catch((err: Error) => {
+      console.error(`Navigation failed: ${err.message}`);
+    });
   }
 
   async aboutToAppear() {
