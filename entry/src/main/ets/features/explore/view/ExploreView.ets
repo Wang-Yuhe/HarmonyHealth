@@ -5,6 +5,21 @@
 import { ExploreVM } from '../viewmodel/ExploreVM';
 import { GreetingData, DietData, ExerciseData, ScheduleData, HealthTipsData, DietRecommendation, ExerciseRecommendation, DailySchedule, HealthTip } from '../model/ExploreModels';
 
+const BANNER_IMAGES = [
+  '1.png',
+  '2025-12-22_005554.png',
+  '2025-12-22_005609.png',
+  '2025-12-22_005701.png',
+  '2025-12-22_005719.png',
+  '2025-12-22_005729.png',
+  '2025-12-22_005737.png',
+  '2025-12-22_005745.png',
+  '2025-12-22_005755.png',
+  '2025-12-22_005803.png',
+  '2025-12-22_005811.png',
+  '2025-12-22_005820.png'
+];
+
 // --- Constants & Styles ---
 const COLOR_BG = '#F5F7FA'; // Light Grey-Blue
 const COLOR_PRIMARY = '#4A90E2'; // Bright Blue
@@ -17,6 +32,17 @@ const COLOR_TEXT_SUB = '#7F8C8D';
 @Component
 export struct ExploreView {
   @State vm: ExploreVM = new ExploreVM();
+  @State bannerImages: string[] = [];
+
+  aboutToAppear() {
+    this.vm.refreshAll();
+    this.randomizeBanners();
+  }
+
+  randomizeBanners() {
+    const shuffled = [...BANNER_IMAGES].sort(() => 0.5 - Math.random());
+    this.bannerImages = shuffled.slice(0, 5);
+  }
 
   @StorageLink('Explore_Greeting') greetingJson: string = '';
   @StorageLink('Explore_Diet') dietJson: string = '';
@@ -216,9 +242,9 @@ export struct ExploreView {
   @Builder
   BannerSwiper(): void {
     Swiper() {
-      this.BannerItem("7天瑜伽挑战", "开始你的柔韧之旅", '#6C5CE7')
-      this.BannerItem("健康饮食指南", "吃出好身材", '#00B894')
-      this.BannerItem("改善睡眠质量", "拥有深度睡眠", '#FD79A8')
+      ForEach(this.bannerImages, (image: string) => {
+        this.BannerItem(image)
+      })
     }
     .autoPlay(true)
     .interval(5000)
@@ -230,32 +256,13 @@ export struct ExploreView {
   }
 
   @Builder
-  BannerItem(title: string, subtitle: string, color: string): void {
+  BannerItem(imagePath: string): void {
     Stack() {
-      Column()
+      Image($rawfile(`explore_pictures/${imagePath}`))
         .width('100%')
         .height('100%')
-        .backgroundColor(color)
+        .objectFit(ImageFit.Cover)
         .borderRadius(16)
-        .opacity(0.9)
-      
-      Column() {
-        Text(title)
-          .fontSize(22)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
-          .margin({ bottom: 8 })
-        
-        Text(subtitle)
-          .fontSize(14)
-          .fontColor(Color.White)
-          .opacity(0.9)
-      }
-      .width('100%')
-      .height('100%')
-      .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Start)
-      .padding(24)
     }
     .width('100%')
     .height('100%')
