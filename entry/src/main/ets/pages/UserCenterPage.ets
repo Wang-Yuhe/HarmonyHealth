@@ -5,12 +5,14 @@ import { dataSharePredicates } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import fs from '@ohos.file.fs';
 import { HealthDB } from '../database/HealthDB';
+import { image } from '@kit.ImageKit'; 
 
 @Entry
 @Component
 struct UserCenterPage {
   /* ===== 状态 ===== */
-  @State avatarUri: string | Resource = AppStorage.get('avatar') ?? $r('app.media.profileIcon');
+  // 2. 修改类型定义，支持 PixelMap
+  @State avatarUri: string | Resource | image.PixelMap = AppStorage.get('avatar') ?? $r('app.media.profileIcon');
   @State username: string = AppStorage.get('currentUser') ?? '';
   @State email: string = AppStorage.get('email') ?? '';
   @State newPwd: string = '';
@@ -57,10 +59,16 @@ struct UserCenterPage {
         return;
       }
       const destPath = oldUri.slice(7);
-      const file = await fs.open(destPath, fs.OpenMode.WRITE_ONLY);
+      
+      // 3. 修改：增加 TRUNC 选项，确保新文件覆盖时若变小不会残留旧数据
+      const file = await fs.open(destPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC);
       await fs.write(file.fd, buffer);
       await fs.close(file.fd);
-      this.avatarUri = oldUri;
+
+      // 4. 修改：使用 PixelMap 强制刷新 UI，解决同名文件覆盖不刷新的问题
+      const imageSource = image.createImageSource(buffer);
+      this.avatarUri = await imageSource.createPixelMap();
+      
       this.promptAction.showToast({ message: '头像已更新' });
     } catch (e) {
       this.promptAction.showToast({ message: '换头像失败' });

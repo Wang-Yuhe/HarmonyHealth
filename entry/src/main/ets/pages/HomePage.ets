@@ -112,6 +112,10 @@ struct HomePage {
   @State currentData: HealthData = new HealthData(0, 0, 0, 0);
   @State todaySleep: SleepData | null = null;
   @State todaySteps: number = 0;
+  
+  // 新增：绑定 AppStorage 中的 avatar，确保修改后自动刷新
+  @StorageProp('avatar') currentUserAvatar: string | Resource = $r('app.media.profileIcon');
+
   private healthVM: HealthVM = new HealthVM();
 
   private handleLogout(): void {
@@ -218,7 +222,8 @@ struct HomePage {
           Blank()
 
           // 头像
-          Image(AppStorage.get('avatar') ?? $r('app.media.profileIcon'))
+          // 修改：使用 this.currentUserAvatar 替代 AppStorage.get(...)
+          Image(this.currentUserAvatar || $r('app.media.profileIcon'))
             .width(42)
             .height(42)
             .borderRadius(21)
