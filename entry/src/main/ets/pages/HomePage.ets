@@ -8,6 +8,7 @@ import { HealthData } from '../common/model/HealthData';
 import { SleepData } from '../common/model/SleepData';
 import { HealthDB } from '../database/HealthDB';
 import { AuthUtil } from '../common/utils/AuthUtil';
+import { image } from '@kit.ImageKit';
 
 // --- 全局配色常量 (与 ExploreView 保持一致) ---
 const COLOR_BG_BASE = '#FFFFFF'; // 纯白底色，让光晕更透亮
@@ -113,8 +114,10 @@ struct HomePage {
   @State todaySleep: SleepData | null = null;
   @State todaySteps: number = 0;
   
-  // 新增：绑定 AppStorage 中的 avatar，确保修改后自动刷新
-  @StorageProp('avatar') currentUserAvatar: string | Resource = $r('app.media.profileIcon');
+  // 修改：添加 @Watch 监听，并配合 displayAvatar 实现强制刷新
+  @StorageProp('avatar') @Watch('onAvatarChange') currentUserAvatar: string | Resource = $r('app.media.profileIcon');
+  // 新增：用于实际显示的头像状态（支持 PixelMap 以强制刷新）
+  @State displayAvatar: string | Resource | image.PixelMap = $r('app.media.profileIcon');
 
   private healthVM: HealthVM = new HealthVM();
 
@@ -156,6 +159,31 @@ struct HomePage {
 
     await this.loadTodaySteps();
     await this.loadSleepData();
+    this.loadAvatar(); // 初始加载
+  }
+
+  // 新增：头像加载逻辑
+  private async loadAvatar() {
+    // 如果是 Resource 或非文件路径，直接使用
+    if (typeof this.currentUserAvatar !== 'string' || !this.currentUserAvatar.startsWith('file://')) {
+      this.displayAvatar = this.currentUserAvatar;
+      return;
+    }
+
+    // 如果是本地文件，通过 PixelMap 加载以绕过 Image 组件的 URI 缓存
+    try {
+      const imageSource = image.createImageSource(this.currentUserAvatar);
+      const pixelMap = await imageSource.createPixelMap();
+      this.displayAvatar = pixelMap;
+    } catch (e) {
+      console.error('Load avatar failed:', e);
+      this.displayAvatar = this.currentUserAvatar;
+    }
+  }
+
+  // 监听 AppStorage 变化
+  onAvatarChange() {
+    this.loadAvatar();
   }
 
   private async loadTodaySteps() {
@@ -192,6 +220,7 @@ struct HomePage {
       await this.loadTodaySteps();
     });
     this.loadSleepData();
+    this.loadAvatar(); // 每次页面显示时强制刷新头像（解决从个人中心返回时不刷新的问题）
   }
 
   onPageHide() { this.healthVM.stopMonitoring(); }
@@ -222,8 +251,8 @@ struct HomePage {
           Blank()
 
           // 头像
-          // 修改：使用 this.currentUserAvatar 替代 AppStorage.get(...)
-          Image(this.currentUserAvatar || $r('app.media.profileIcon'))
+          // 修改：使用 this.displayAvatar 替代 this.currentUserAvatar
+          Image(this.displayAvatar || $r('app.media.profileIcon'))
             .width(42)
             .height(42)
             .borderRadius(21)
