@@ -1,6 +1,6 @@
 /**
  * @file AskAIPage.ets
- * @description AI 咨询页面 - UI 优化版（AI头像改为小机器人 & 思考状态同步头像）
+ * @description AI 咨询页面 - UI 优化版（AI头像改为自定义图片）
  */
 import { myNavigator } from '../common/components/Navigator';
 import common from '@ohos.app.ability.common';
@@ -193,24 +193,16 @@ struct AskAIPage {
   private MessageBubble(msg: ChatMessage) {
     Row() {
       if (msg.from === 'ai') {
-        // --- 修改点：AI 头像改为小机器人 ---
-        Row() {
-          Text('🤖')
-            .fontSize(22) // 稍微放大 Emoji，使其充满圆形容器
-        }
-        .width(38)
-        .height(38)
-        .borderRadius(19) // 圆形
-        .justifyContent(FlexAlign.Center)
-        .alignItems(VerticalAlign.Center)
-        .margin({ right: 8, top: 0 })
-        .alignSelf(ItemAlign.Start)
-        // 科技感渐变背景 (蓝紫色)
-        .linearGradient({
-          angle: 135,
-          colors: [['#667EEA', 0.0], ['#764BA2', 1.0]]
-        })
-        .shadow({ radius: 6, color: 'rgba(118, 75, 162, 0.4)', offsetY: 2 })
+        // --- 修改点：AI 头像改为自定义图片 ---
+        Image($r('app.media.ai_avatar')) // 请确保您已将图片命名为 ai_avatar 放入 media 目录
+          .width(40)
+          .height(40)
+          .borderRadius(20) // 圆形
+          .objectFit(ImageFit.Cover) // 确保图片充满圆形区域且不变形
+          .margin({ right: 8, top: 0 })
+          .alignSelf(ItemAlign.Start)
+          .backgroundColor('#F0F2F5') // 图片加载失败时的底色
+          .shadow({ radius: 4, color: 'rgba(0,0,0,0.1)', offsetY: 2 })
       }
 
       Column() {
@@ -367,26 +359,18 @@ struct AskAIPage {
     }
   }
 
-  // --- 修改点：思考状态指示器 (显示机器人头像) ---
+  // --- 修改点：思考状态指示器 (同步显示机器人头像) ---
   @Builder
   private TypingIndicator() {
     Row() {
-      // 1. 显示机器人头像 (保持视觉统一)
-      Row() {
-        Text('🤖')
-          .fontSize(22)
-      }
-      .width(38)
-      .height(38)
-      .borderRadius(19)
-      .justifyContent(FlexAlign.Center)
-      .alignItems(VerticalAlign.Center)
-      .margin({ right: 8 }) // 头像与气泡的间距
-      .linearGradient({
-        angle: 135,
-        colors: [['#667EEA', 0.0], ['#764BA2', 1.0]]
-      })
-      .shadow({ radius: 6, color: 'rgba(118, 75, 162, 0.4)', offsetY: 2 })
+      // 1. 显示机器人头像
+      Image($r('app.media.ai_avatar')) // 请确保资源存在
+        .width(40)
+        .height(40)
+        .borderRadius(20)
+        .objectFit(ImageFit.Cover)
+        .margin({ right: 8 })
+        .shadow({ radius: 4, color: 'rgba(0,0,0,0.1)', offsetY: 2 })
 
       // 2. 思考中动画气泡
       Row({ space: 4 }) {
