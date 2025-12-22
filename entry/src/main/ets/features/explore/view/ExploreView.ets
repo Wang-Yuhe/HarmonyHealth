@@ -1,6 +1,6 @@
 /**
  * @file ExploreView.ets
- * @description Main View for the Explore Feature
+ * @description Main View for the Explore Feature with Vibrant Background
  */
 import { ExploreVM } from '../viewmodel/ExploreVM';
 import { GreetingData, DietData, ExerciseData, ScheduleData, HealthTipsData, DietRecommendation, ExerciseRecommendation, DailySchedule, HealthTip } from '../model/ExploreModels';
@@ -21,15 +21,17 @@ const BANNER_IMAGES = [
 ];
 
 // --- Constants & Styles ---
-const COLOR_BG_START = '#F0F4F8'; // Gradient Start
-const COLOR_BG_END = '#E6EEF5';   // Gradient End
-const COLOR_BG = '#F5F7FA'; // Fallback
+// 基础背景色改为纯白，让上面的彩色光晕更通透
+const COLOR_BG_BASE = '#FFFFFF';
 const COLOR_PRIMARY = '#4A90E2'; // Bright Blue
 const COLOR_ACCENT = '#FF6B6B'; // Soft Red
+const COLOR_PURPLE = '#6C5CE7'; // Soft Purple
 const COLOR_SUCCESS = '#2ECC71'; // Green
-const COLOR_CARD_BG = '#FFFFFF';
-const COLOR_TEXT_MAIN = '#1A2A3A'; // Darker for better contrast
+const COLOR_TEXT_MAIN = '#1A2A3A';
 const COLOR_TEXT_SUB = '#7F8C8D';
+
+// 卡片背景调整为半透明白色，以透出背景色
+const CARD_BG_COLOR = 'rgba(255, 255, 255, 0.85)';
 
 @Component
 export struct ExploreView {
@@ -79,189 +81,230 @@ export struct ExploreView {
   }
 
   build() {
-    Column() {
-      // Header / Title Bar
-      Row() {
-        Text("发现")
-          .fontSize(34) // Larger font
-          .fontWeight(FontWeight.Bold)
-          .fontColor(COLOR_TEXT_MAIN)
-          .shadow({ radius: 2, color: 'rgba(0,0,0,0.1)', offsetY: 2 }) // Text shadow
-        Blank()
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($r('app.media.update')) 
-            .width(22)
-            .height(22)
-            .fillColor(Color.White)
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(COLOR_PRIMARY) // Colored button background
-        .shadow({ radius: 8, color: 'rgba(74, 144, 226, 0.4)', offsetY: 4 })
-        .onClick(() => {
-          this.vm.refreshAll();
-        })
-      }
-      .width('100%')
-      .padding({ left: 24, right: 24, top: 16, bottom: 10 }) // Increased padding
-      .backgroundColor(Color.Transparent) // Transparent to show gradient
+    // 根容器使用 Stack 叠加层级
+    Stack({ alignContent: Alignment.TopStart }) {
 
-      Scroll() {
-        Column({ space: 24 }) { // Increased vertical spacing
-          // 1. Banner Swiper (Moved to top for better UX)
-          this.BannerSwiper()
+      // --- 层级 1: 鲜艳的弥散背景 ---
+      this.BackgroundDecorations()
 
-          // 2. Greeting & Quote
-          if (this.isGreetingLoading) {
-            this.SectionLoading()
-          } else if (this.getGreetingData()) {
-            this.GreetingSection(this.getGreetingData()!)
-          } else {
-            this.SectionError(() => { this.vm.refreshGreeting() })
+      // --- 层级 2: 页面主要内容 ---
+      Column() {
+        // 顶部标题栏
+        Row() {
+          Text("发现")
+            .fontSize(34)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(COLOR_TEXT_MAIN)
+
+          Blank()
+
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            Image($r('app.media.update'))
+              .width(22)
+              .height(22)
+              .fillColor(Color.White)
           }
-
-          // 3. Diet Plan
-          Column() {
-            Row() {
-              this.SectionHeader("营养计划")
-              Blank()
-              this.RefreshIcon(() => { this.vm.refreshDiet() }, this.isDietLoading)
-            }.width('100%').padding({ right: 24 })
-            
-            if (this.isDietLoading) {
-              this.SectionLoading()
-            } else if (this.getDietData()) {
-              List({ space: 16 }) { // Increased list spacing
-                ForEach(this.getDietData()!.dietPlan, (item: DietRecommendation) => {
-                  ListItem() {
-                    this.DietCard(item)
-                  }
-                })
-              }
-              .listDirection(Axis.Horizontal)
-              .width('100%')
-              .height(190) // Increased height for better card layout
-              .scrollBar(BarState.Off)
-              .edgeEffect(EdgeEffect.Spring)
-              .padding({ left: 24, right: 24, bottom: 10 }) // Add bottom padding for shadow
-            } else {
-              this.SectionError(() => { this.vm.refreshDiet() })
-            }
-          }
-
-          // 4. Exercise Plan
-          Column() {
-            Row() {
-              this.SectionHeader("运动建议")
-              Blank()
-              this.RefreshIcon(() => { this.vm.refreshExercise() }, this.isExerciseLoading)
-            }.width('100%').padding({ right: 24 })
-
-            if (this.isExerciseLoading) {
-              this.SectionLoading()
-            } else if (this.getExerciseData()) {
-              List({ space: 16 }) {
-                ForEach(this.getExerciseData()!.exercisePlan, (item: ExerciseRecommendation) => {
-                  ListItem() {
-                    this.ExerciseCard(item)
-                  }
-                })
-              }
-              .listDirection(Axis.Horizontal)
-              .width('100%')
-              .height(170) // Increased height
-              .scrollBar(BarState.Off)
-              .edgeEffect(EdgeEffect.Spring)
-              .padding({ left: 24, right: 24, bottom: 10 }) // Add bottom padding for shadow
-            } else {
-              this.SectionError(() => { this.vm.refreshExercise() })
-            }
-          }
-
-          // 5. Schedule
-          Column() {
-            Row() {
-              this.SectionHeader("每日流程")
-              Blank()
-              this.RefreshIcon(() => { this.vm.refreshSchedule() }, this.isScheduleLoading)
-            }.width('100%').padding({ right: 24 })
-
-            if (this.isScheduleLoading) {
-              this.SectionLoading()
-            } else if (this.getScheduleData()) {
-              Column({ space: 0 }) { // Space handled inside item for timeline effect
-                ForEach(this.getScheduleData()!.schedule, (item: DailySchedule, index: number) => {
-                  this.ScheduleItem(item, index === this.getScheduleData()!.schedule.length - 1)
-                })
-              }
-              .padding({ left: 24, right: 24 })
-              .backgroundColor(Color.White)
-              .borderRadius(24)
-              .margin({ left: 24, right: 24 })
-              .padding({ top: 24, bottom: 24 }) // Inner padding for the card
-              .shadow({ radius: 15, color: 'rgba(0,0,0,0.08)', offsetY: 8 })
-            } else {
-              this.SectionError(() => { this.vm.refreshSchedule() })
-            }
-          }
-
-          // 6. Tips
-          Column() {
-            Row() {
-              this.SectionHeader("健康小贴士")
-              Blank()
-              this.RefreshIcon(() => { this.vm.refreshTips() }, this.isTipsLoading)
-            }.width('100%').padding({ right: 24 })
-
-            if (this.isTipsLoading) {
-              this.SectionLoading()
-            } else if (this.getTipsData()) {
-              Grid() {
-                ForEach(this.getTipsData()!.healthTips, (item: HealthTip) => {
-                  GridItem() {
-                    this.TipCard(item)
-                  }
-                })
-              }
-              .columnsTemplate('1fr 1fr')
-              .rowsGap(16)
-              .columnsGap(16)
-              .height(240) // Increased height
-              .padding({ left: 24, right: 24, bottom: 50 })
-            } else {
-              this.SectionError(() => { this.vm.refreshTips() })
-            }
-          }
-
+          .width(44)
+          .height(44)
+          .backgroundColor(COLOR_PRIMARY)
+          .shadow({ radius: 8, color: 'rgba(74, 144, 226, 0.4)', offsetY: 4 })
+          .onClick(() => {
+            this.vm.refreshAll();
+          })
         }
         .width('100%')
+        .padding({ left: 24, right: 24, top: 16, bottom: 10 })
+        .zIndex(2)
+
+        Scroll() {
+          Column({ space: 24 }) {
+            // 1. Banner 轮播图
+            this.BannerSwiper()
+
+            // 2. 问候语
+            if (this.isGreetingLoading) {
+              this.SectionLoading()
+            } else if (this.getGreetingData()) {
+              this.GreetingSection(this.getGreetingData()!)
+            } else {
+              this.SectionError(() => { this.vm.refreshGreeting() })
+            }
+
+            // 3. 营养计划
+            Column() {
+              Row() {
+                this.SectionHeader("营养计划")
+                Blank()
+                this.RefreshIcon(() => { this.vm.refreshDiet() }, this.isDietLoading)
+              }.width('100%').padding({ right: 24 })
+
+              if (this.isDietLoading) {
+                this.SectionLoading()
+              } else if (this.getDietData()) {
+                List({ space: 16 }) {
+                  ForEach(this.getDietData()!.dietPlan, (item: DietRecommendation) => {
+                    ListItem() {
+                      this.DietCard(item)
+                    }
+                  })
+                }
+                .listDirection(Axis.Horizontal)
+                .width('100%')
+                .height(190)
+                .scrollBar(BarState.Off)
+                .edgeEffect(EdgeEffect.Spring)
+                .padding({ left: 24, right: 24, bottom: 10 })
+              } else {
+                this.SectionError(() => { this.vm.refreshDiet() })
+              }
+            }
+
+            // 4. 运动建议
+            Column() {
+              Row() {
+                this.SectionHeader("运动建议")
+                Blank()
+                this.RefreshIcon(() => { this.vm.refreshExercise() }, this.isExerciseLoading)
+              }.width('100%').padding({ right: 24 })
+
+              if (this.isExerciseLoading) {
+                this.SectionLoading()
+              } else if (this.getExerciseData()) {
+                List({ space: 16 }) {
+                  ForEach(this.getExerciseData()!.exercisePlan, (item: ExerciseRecommendation) => {
+                    ListItem() {
+                      this.ExerciseCard(item)
+                    }
+                  })
+                }
+                .listDirection(Axis.Horizontal)
+                .width('100%')
+                .height(170)
+                .scrollBar(BarState.Off)
+                .edgeEffect(EdgeEffect.Spring)
+                .padding({ left: 24, right: 24, bottom: 10 })
+              } else {
+                this.SectionError(() => { this.vm.refreshExercise() })
+              }
+            }
+
+            // 5. 每日流程
+            Column() {
+              Row() {
+                this.SectionHeader("每日流程")
+                Blank()
+                this.RefreshIcon(() => { this.vm.refreshSchedule() }, this.isScheduleLoading)
+              }.width('100%').padding({ right: 24 })
+
+              if (this.isScheduleLoading) {
+                this.SectionLoading()
+              } else if (this.getScheduleData()) {
+                Column({ space: 0 }) {
+                  ForEach(this.getScheduleData()!.schedule, (item: DailySchedule, index: number) => {
+                    this.ScheduleItem(item, index === this.getScheduleData()!.schedule.length - 1)
+                  })
+                }
+                .padding({ left: 24, right: 24 })
+                .backgroundColor(CARD_BG_COLOR) // 使用半透明背景
+                .backdropBlur(10) // 开启背景模糊，增强玻璃质感
+                .borderRadius(24)
+                .margin({ left: 24, right: 24 })
+                .padding({ top: 24, bottom: 24 })
+                .shadow({ radius: 15, color: 'rgba(0,0,0,0.05)', offsetY: 8 })
+              } else {
+                this.SectionError(() => { this.vm.refreshSchedule() })
+              }
+            }
+
+            // 6. 健康小贴士
+            Column() {
+              Row() {
+                this.SectionHeader("健康小贴士")
+                Blank()
+                this.RefreshIcon(() => { this.vm.refreshTips() }, this.isTipsLoading)
+              }.width('100%').padding({ right: 24 })
+
+              if (this.isTipsLoading) {
+                this.SectionLoading()
+              } else if (this.getTipsData()) {
+                Grid() {
+                  ForEach(this.getTipsData()!.healthTips, (item: HealthTip) => {
+                    GridItem() {
+                      this.TipCard(item)
+                    }
+                  })
+                }
+                .columnsTemplate('1fr 1fr')
+                .rowsGap(16)
+                .columnsGap(16)
+                .height(240)
+                .padding({ left: 24, right: 24, bottom: 50 })
+              } else {
+                this.SectionError(() => { this.vm.refreshTips() })
+              }
+            }
+
+          }
+          .width('100%')
+        }
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+        .layoutWeight(1)
       }
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .layoutWeight(1)
+      .width('100%')
+      .height('100%')
+    }
+  }
+
+  /**
+   * 背景装饰层 - 增强版
+   * 颜色更深，位置更显著
+   */
+  @Builder
+  BackgroundDecorations(): void {
+    Stack() {
+      // 1. 左上角 - 深蓝色 (主色调)
+      Circle({ width: 350, height: 350 })
+        .fill('rgba(74, 144, 226, 0.4)') // Opacity 提高到 0.4
+        .position({ x: -100, y: -100 })
+        .blur(80) // 保持高模糊以融合
+
+      // 2. 右上角 - 亮紫色 (对比色)
+      Circle({ width: 320, height: 320 })
+        .fill('rgba(108, 92, 231, 0.4)') // Opacity 提高到 0.4
+        .position({ x: '50%', y: -80 })
+        .blur(70)
+
+      // 3. 左下/中部 - 暖红色 (活力点缀)
+      Circle({ width: 380, height: 380 })
+        .fill('rgba(255, 107, 107, 0.25)') // 稍微淡一点，因为红色很抢眼
+        .position({ x: -120, y: '35%' })
+        .blur(90)
+
+      // 4. 右下角 - 清新绿 (平衡视觉)
+      Circle({ width: 250, height: 250 })
+        .fill('rgba(46, 204, 113, 0.2)')
+        .position({ x: '60%', y: '80%' })
+        .blur(60)
     }
     .width('100%')
     .height('100%')
-    .linearGradient({
-      angle: 180,
-      colors: [[COLOR_BG_START, 0.0], [COLOR_BG_END, 1.0]]
-    })
+    .backgroundColor(COLOR_BG_BASE)
   }
 
   @Builder
   SectionHeader(title: string): void {
     Row() {
-      // Decorative vertical bar
       Column()
-        .width(6) // Thicker
-        .height(22) // Taller
+        .width(6)
+        .height(22)
         .backgroundColor(COLOR_PRIMARY)
         .borderRadius(3)
         .margin({ right: 10 })
         .shadow({ radius: 4, color: 'rgba(74, 144, 226, 0.4)', offsetX: 2 })
 
       Text(title)
-        .fontSize(22) // Larger
+        .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor(COLOR_TEXT_MAIN)
     }
@@ -277,7 +320,7 @@ export struct ExploreView {
     }
     .autoPlay(true)
     .interval(5000)
-    .height(200) // Increased height to show more image content
+    .height(200)
     .itemSpace(16)
     .margin({ left: 24, right: 24 })
     .borderRadius(24)
@@ -290,7 +333,7 @@ export struct ExploreView {
         .color('rgba(255, 255, 255, 0.6)')
         .selectedColor(Color.White)
     )
-    .shadow({ radius: 20, color: 'rgba(0,0,0,0.15)', offsetY: 10 }) // Stronger shadow
+    .shadow({ radius: 20, color: 'rgba(0,0,0,0.12)', offsetY: 10 })
   }
 
   @Builder
@@ -299,7 +342,7 @@ export struct ExploreView {
       Image($rawfile(`explore_pictures/${imagePath}`))
         .width('100%')
         .height('100%')
-        .objectFit(ImageFit.Fill) // Changed to Fill to show full image
+        .objectFit(ImageFit.Cover)
         .borderRadius(24)
     }
     .width('100%')
@@ -311,7 +354,7 @@ export struct ExploreView {
     if (isLoading) {
       LoadingProgress().width(20).height(20).color(COLOR_PRIMARY)
     } else {
-      Image($r('app.media.update')) // Replace with refresh icon
+      Image($r('app.media.update'))
         .width(20)
         .height(20)
         .fillColor(COLOR_TEXT_SUB)
@@ -344,9 +387,7 @@ export struct ExploreView {
   @Builder
   GreetingSection(data: GreetingData): void {
     Column() {
-      // Main Colored Card Container
       Column() {
-        // 1. Greeting Title (White Text)
         Text(data.greeting)
           .fontSize(26)
           .fontWeight(FontWeight.Bold)
@@ -354,7 +395,6 @@ export struct ExploreView {
           .width('100%')
           .margin({ bottom: 20 })
 
-        // 2. Inspiration Inner Box (Layered)
         Column() {
           Row() {
             Text("每日灵感")
@@ -380,7 +420,7 @@ export struct ExploreView {
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .width('100%')
-        .backgroundColor('rgba(255, 255, 255, 0.2)') // More visible glass effect
+        .backgroundColor('rgba(255, 255, 255, 0.2)')
         .borderRadius(16)
         .padding(20)
         .backdropBlur(20)
@@ -388,11 +428,11 @@ export struct ExploreView {
       .width('100%')
       .linearGradient({
         angle: 135,
-        colors: [[COLOR_PRIMARY, 0.0], ['#6C5CE7', 1.0]]
+        colors: [[COLOR_PRIMARY, 0.0], [COLOR_PURPLE, 1.0]]
       })
       .borderRadius(28)
       .padding(24)
-      .shadow({ radius: 20, color: 'rgba(74, 144, 226, 0.5)', offsetY: 10 })
+      .shadow({ radius: 20, color: 'rgba(74, 144, 226, 0.4)', offsetY: 10 })
     }
     .padding({ left: 24, right: 24 })
   }
@@ -416,7 +456,7 @@ export struct ExploreView {
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-      
+
       Text(item.suggestion)
         .fontSize(14)
         .fontColor(COLOR_TEXT_SUB)
@@ -427,22 +467,23 @@ export struct ExploreView {
         .layoutWeight(1)
 
       Row({ space: 6 }) {
-        ForEach(item.tags.slice(0, 2), (tag: string) => { // Limit tags to prevent overflow
+        ForEach(item.tags.slice(0, 2), (tag: string) => {
           Text(tag)
             .fontSize(10)
             .fontColor(COLOR_SUCCESS)
-            .backgroundColor('#E8F8F5')
+            .backgroundColor('rgba(46, 204, 113, 0.1)')
             .padding({ left: 8, right: 8, top: 4, bottom: 4 })
             .borderRadius(6)
         })
       }
     }
-    .width(230) // Slightly wider
+    .width(230)
     .height('100%')
     .padding(18)
-    .backgroundColor(COLOR_CARD_BG)
+    .backgroundColor(CARD_BG_COLOR) // 半透明
+    .backdropBlur(10) // 模糊
     .borderRadius(24)
-    .shadow({ radius: 12, color: 'rgba(0,0,0,0.08)', offsetY: 6 }) // Enhanced shadow
+    .shadow({ radius: 12, color: 'rgba(0,0,0,0.05)', offsetY: 6 })
   }
 
   @Builder
@@ -457,9 +498,9 @@ export struct ExploreView {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .width('100%')
-      
+
       Row() {
-        Image($r('app.media.startIcon')) // Placeholder for clock icon, or use text
+        Image($r('app.media.startIcon'))
           .width(14).height(14).fillColor(COLOR_TEXT_SUB).margin({right: 4})
         Text(item.duration)
           .fontSize(13)
@@ -480,7 +521,7 @@ export struct ExploreView {
         Text(item.intensity)
           .fontSize(11)
           .fontWeight(FontWeight.Bold)
-          .fontColor(item.intensity === 'High' ? '#FF6B6B' : '#2ECC71')
+          .fontColor(item.intensity === 'High' ? COLOR_ACCENT : COLOR_SUCCESS)
           .backgroundColor(item.intensity === 'High' ? 'rgba(255, 107, 107, 0.1)' : 'rgba(46, 204, 113, 0.1)')
           .padding({ left: 8, right: 8, top: 4, bottom: 4 })
           .borderRadius(8)
@@ -490,9 +531,10 @@ export struct ExploreView {
     .width(180)
     .height('100%')
     .padding(18)
-    .backgroundColor(COLOR_CARD_BG)
+    .backgroundColor(CARD_BG_COLOR) // 半透明
+    .backdropBlur(10) // 模糊
     .borderRadius(24)
-    .shadow({ radius: 12, color: 'rgba(0,0,0,0.08)', offsetY: 6 }) // Enhanced shadow
+    .shadow({ radius: 12, color: 'rgba(0,0,0,0.05)', offsetY: 6 })
   }
 
   @Builder
@@ -512,15 +554,14 @@ export struct ExploreView {
 
       // Timeline Graphic
       Column() {
-        // Dot
         Circle({ width: 12, height: 12 })
           .fill(COLOR_PRIMARY)
           .shadow({ radius: 4, color: 'rgba(74, 144, 226, 0.4)', offsetY: 2 })
-        // Line
+
         if (!isLast) {
           Column()
             .width(2)
-            .height(40) // Adjust height based on content
+            .height(40)
             .backgroundColor('#E0E6ED')
             .margin({ top: 4 })
         }
@@ -533,7 +574,7 @@ export struct ExploreView {
         Text(item.activity)
           .fontSize(16)
           .fontColor(COLOR_TEXT_MAIN)
-          .margin({ bottom: isLast ? 0 : 28 }) // Spacing for next item
+          .margin({ bottom: isLast ? 0 : 28 })
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
@@ -557,7 +598,7 @@ export struct ExploreView {
       }
       .width('100%')
       .margin({ bottom: 10 })
-      
+
       Text(item.title)
         .fontSize(15)
         .fontWeight(FontWeight.Bold)
@@ -565,7 +606,7 @@ export struct ExploreView {
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .margin({ bottom: 6 })
-      
+
       Text(item.content)
         .fontSize(13)
         .fontColor(COLOR_TEXT_SUB)
@@ -576,9 +617,9 @@ export struct ExploreView {
     .width('100%')
     .height(140)
     .padding(16)
-    .backgroundColor(COLOR_CARD_BG)
+    .backgroundColor(CARD_BG_COLOR) // 半透明
+    .backdropBlur(10) // 模糊
     .borderRadius(20)
     .shadow({ radius: 8, color: 'rgba(0,0,0,0.06)', offsetY: 4 })
   }
 }
-
