@@ -98,16 +98,18 @@ export struct ExploreView {
 
           Blank()
 
+          // --- 修改部分：刷新按钮样式调整 ---
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             Image($r('app.media.update'))
               .width(22)
               .height(22)
-              .fillColor(Color.White)
+              .fillColor(COLOR_TEXT_MAIN) // 图标颜色改为深色，以适应浅色半透明背景
           }
           .width(44)
           .height(44)
-          .backgroundColor(COLOR_PRIMARY)
-          .shadow({ radius: 8, color: 'rgba(74, 144, 226, 0.4)', offsetY: 4 })
+          .backgroundColor('rgba(255, 255, 255, 0.5)') // 背景改为半透明白色，透出背景色块
+          .backdropBlur(20) // 添加磨砂模糊效果
+          .shadow({ radius: 8, color: 'rgba(0, 0, 0, 0.05)', offsetY: 4 }) // 阴影变淡
           .onClick(() => {
             this.vm.refreshAll();
           })
