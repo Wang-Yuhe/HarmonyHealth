@@ -1,6 +1,6 @@
 /**
  * @file AskAIPage.ets
- * @description AI 咨询页面 - UI 优化版
+ * @description AI 咨询页面 - UI 优化版（AI头像改为小机器人 & 思考状态同步头像）
  */
 import { myNavigator } from '../common/components/Navigator';
 import common from '@ohos.app.ability.common';
@@ -20,6 +20,10 @@ struct AskAIPage {
   @State messages: ChatMessage[] = []
   @State inputText: string = ''
   @State isThinking: boolean = false
+
+  // 获取 AppStorage 中存储的用户头像，实现与个人中心同步
+  @StorageProp('avatar') currentUserAvatar: string = '';
+
   private nextId: number = 1
   private chatScroller: Scroller = new Scroller()
   private static readonly PREF_FILE: string = 'ask_ai_history'
@@ -48,7 +52,7 @@ struct AskAIPage {
                 if (this.messages.length === 0) {
                   this.EmptyPlaceholder()
                 } else {
-                  // 顶部留白，避免被头部遮挡（如果头部悬浮）或太紧凑
+                  // 顶部留白，避免被头部遮挡
                   Blank().height(10)
 
                   ForEach(this.messages, (msg: ChatMessage) => {
@@ -108,7 +112,6 @@ struct AskAIPage {
         }
         .alignItems(HorizontalAlign.Start)
 
-        // 移除不存在的app_icon引用
         Blank().width(48).height(48)
       }
       .width('100%')
@@ -157,7 +160,6 @@ struct AskAIPage {
   @Builder
   private EmptyPlaceholder() {
     Column({ space: 16 }) {
-      // 使用简单的圆形图标替代不存在的ic_public_message
       Column() {
         Text('💬')
           .fontSize(40)
@@ -191,24 +193,28 @@ struct AskAIPage {
   private MessageBubble(msg: ChatMessage) {
     Row() {
       if (msg.from === 'ai') {
-        // AI 头像 - 改为蓝色背景，白色图标
-        Column() {
+        // --- 修改点：AI 头像改为小机器人 ---
+        Row() {
           Text('🤖')
-            .fontSize(20)
-            .fontColor('#FFFFFF')
+            .fontSize(22) // 稍微放大 Emoji，使其充满圆形容器
         }
-        .width(36)
-        .height(36)
-        .borderRadius(18)
-        .backgroundColor('#5C7CFF') // 蓝色背景
-        .margin({ right: 8, top: 0 })
+        .width(38)
+        .height(38)
+        .borderRadius(19) // 圆形
         .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center)
-        .alignSelf(ItemAlign.Start) // 顶部对齐
+        .alignItems(VerticalAlign.Center)
+        .margin({ right: 8, top: 0 })
+        .alignSelf(ItemAlign.Start)
+        // 科技感渐变背景 (蓝紫色)
+        .linearGradient({
+          angle: 135,
+          colors: [['#667EEA', 0.0], ['#764BA2', 1.0]]
+        })
+        .shadow({ radius: 6, color: 'rgba(118, 75, 162, 0.4)', offsetY: 2 })
       }
 
       Column() {
-        // 修改开始：使用 Text + Span 解析 Markdown 加粗语法 (**text**)
+        // 解析 Markdown 加粗语法 (**text**)
         Text() {
           ForEach(msg.text.split(/(\*\*.*?\*\*)/g), (part: string) => {
             if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
@@ -219,40 +225,41 @@ struct AskAIPage {
             }
           })
         }
-          .fontSize(16)
-          .lineHeight(24)
-          .fontColor(msg.from === 'user' ? '#FFFFFF' : '#333333')
-          .padding(14)
-          .backgroundColor(msg.from === 'user' ? '#5C7CFF' : '#FFFFFF')
-          .borderRadius(msg.from === 'user'
-            ? {
-              topLeft: 16,
-              topRight: 4,
-              bottomLeft: 16,
-              bottomRight: 16
-            }
-            : {
-              topLeft: 4,
-              topRight: 16,
-              bottomLeft: 16,
-              bottomRight: 16
-            })
-          .shadow(msg.from === 'ai' ? { radius: 8, color: 'rgba(0,0,0,0.05)', offsetY: 2 } : undefined)
-        // 修改结束
+        .fontSize(16)
+        .lineHeight(24)
+        .fontColor(msg.from === 'user' ? '#FFFFFF' : '#333333')
+        .padding(14)
+        .backgroundColor(msg.from === 'user' ? '#5C7CFF' : '#FFFFFF')
+        .borderRadius(msg.from === 'user'
+          ? {
+            topLeft: 16,
+            topRight: 4,
+            bottomLeft: 16,
+            bottomRight: 16
+          }
+          : {
+            topLeft: 4,
+            topRight: 16,
+            bottomLeft: 16,
+            bottomRight: 16
+          })
+        .shadow(msg.from === 'ai' ? { radius: 8, color: 'rgba(0,0,0,0.05)', offsetY: 2 } : undefined)
       }
       .constraintSize({ maxWidth: '70%' }) // 稍微减小气泡最大宽度，留出头像空间
 
       if (msg.from === 'user') {
-        // 用户头像 - 设置为可见
-        Image($r('app.media.profileIcon')) // 使用现有的个人资料图标
-          .width(36)
-          .height(36)
-          .borderRadius(18)
+        // 用户头像 - 动态绑定 AppStorage 中的头像
+        Image(this.currentUserAvatar && this.currentUserAvatar.length > 0 ? this.currentUserAvatar : $r('app.media.profileIcon'))
+          .width(38)
+          .height(38)
+          .borderRadius(19) // 圆形
           .backgroundColor('#E0E4F5') // 默认底色
           .margin({ left: 8, top: 0 })
           .objectFit(ImageFit.Cover)
           .alignSelf(ItemAlign.Start)
-          .visibility(Visibility.Visible) // ✅ 显示用户头像
+          .visibility(Visibility.Visible)
+          .border({ width: 1, color: '#FFFFFF' }) // 增加白色描边，更精致
+          .shadow({ radius: 4, color: 'rgba(0,0,0,0.1)', offsetY: 2 })
       }
     }
     .width('100%')
@@ -287,14 +294,13 @@ struct AskAIPage {
             this.inputText = value
           })
 
-        // 发送按钮 - 优化样式
+        // 发送按钮
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          // 使用简洁的箭头符号代替图片
           Text('↑')
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
             .fontColor('#FFFFFF')
-            .padding({ bottom: 2 }) // 微调位置
+            .padding({ bottom: 2 })
         }
         .width(48)
         .height(48)
@@ -306,7 +312,7 @@ struct AskAIPage {
         })
         .onClick(() => this.onSend())
       }
-      .alignItems(VerticalAlign.Bottom) // 底部对齐，适应多行输入
+      .alignItems(VerticalAlign.Bottom)
       .padding({
         left: 16,
         right: 16,
@@ -314,12 +320,9 @@ struct AskAIPage {
         bottom: 12
       })
     }
-    .backgroundColor('#F5F7FA') // 与背景同色
-    // 顶部边框线，可选
-    // .border({ width: { top: 1 }, color: '#EEF0F5' }) 
+    .backgroundColor('#F5F7FA')
   }
 
-  // 点击 Enter 后，把输入内容加入聊天列表
   private onSend() {
     const content = this.inputText.trim()
     if (content.length === 0 || this.isThinking) {
@@ -334,19 +337,14 @@ struct AskAIPage {
     this.fetchSmartReply(content)
   }
 
-  // 智能回复：优先尝试联网，失败则使用本地规则
   private async fetchSmartReply(question: string) {
     this.isThinking = true
 
     try {
-      // 1. 尝试联网获取
       let replyText = await HealthAIService.fetchOnlineAnswer(question)
 
-      // 2. 如果联网失败（返回 null），则使用离线兜底
       if (!replyText) {
-        // 修改开始：将模拟延迟从 600ms 
         await new Promise<void>(resolve => setTimeout(resolve, 600))
-        // 修改结束
         replyText = HealthAIService.buildAnswer(question)
       }
 
@@ -359,7 +357,6 @@ struct AskAIPage {
       this.persistMessages()
     } catch (err) {
       console.error('SmartReply Error:', JSON.stringify(err))
-      // 异常兜底
       const replyText = HealthAIService.buildAnswer(question)
       const aiMsg: ChatMessage = { id: this.nextId++, from: 'ai', text: replyText }
       this.messages = [...this.messages, aiMsg]
@@ -370,12 +367,28 @@ struct AskAIPage {
     }
   }
 
+  // --- 修改点：思考状态指示器 (显示机器人头像) ---
   @Builder
   private TypingIndicator() {
     Row() {
-      // AI 头像占位
-      Blank().width(36 + 8)
+      // 1. 显示机器人头像 (保持视觉统一)
+      Row() {
+        Text('🤖')
+          .fontSize(22)
+      }
+      .width(38)
+      .height(38)
+      .borderRadius(19)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+      .margin({ right: 8 }) // 头像与气泡的间距
+      .linearGradient({
+        angle: 135,
+        colors: [['#667EEA', 0.0], ['#764BA2', 1.0]]
+      })
+      .shadow({ radius: 6, color: 'rgba(118, 75, 162, 0.4)', offsetY: 2 })
 
+      // 2. 思考中动画气泡
       Row({ space: 4 }) {
         Circle({ width: 6, height: 6 }).fill('#B0B5C7')
         Circle({ width: 6, height: 6 }).fill('#B0B5C7').opacity(0.7)
