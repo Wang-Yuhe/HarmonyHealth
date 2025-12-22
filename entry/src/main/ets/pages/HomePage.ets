@@ -1,6 +1,6 @@
 /**
  * @file HomePage.ets
- * @description 应用主界面（UI 优化版 - 修复玻璃拟态边框颜色格式 #AARRGGBB）
+ * @description 应用主界面（UI 升级版 - 背景风格与探索页统一，增强弥散光感）
  */
 import { myNavigator } from '../common/components/Navigator';
 import { HealthVM } from '../features/healthStatus/viewmodel/HealthVM';
@@ -8,6 +8,13 @@ import { HealthData } from '../common/model/HealthData';
 import { SleepData } from '../common/model/SleepData';
 import { HealthDB } from '../database/HealthDB';
 import { AuthUtil } from '../common/utils/AuthUtil';
+
+// --- 全局配色常量 (与 ExploreView 保持一致) ---
+const COLOR_BG_BASE = '#FFFFFF'; // 纯白底色，让光晕更透亮
+const COLOR_PRIMARY = '#4A90E2';
+const COLOR_ACCENT = '#FF6B6B';
+const CARD_BG_GRADIENT_START = 'rgba(255, 255, 255, 0.85)'; // 卡片渐变起始
+const CARD_BG_GRADIENT_END = 'rgba(255, 255, 255, 0.4)';   // 卡片渐变结束
 
 @Component
 struct HealthItemComponent {
@@ -19,31 +26,29 @@ struct HealthItemComponent {
   @Prop icon: ResourceStr = $r('app.media.startIcon');
 
   build() {
-    // 使用 Stack 增加内部装饰层，营造科技层次感
     Stack({ alignContent: Alignment.TopEnd }) {
       // 1. 装饰背景：右上角的半透明大圆环
       Circle({ width: 80, height: 80 })
         .fill('transparent')
         .stroke(this.themeColor)
         .strokeWidth(12)
-        .opacity(0.05) // 极淡的装饰
+        .opacity(0.08) // 稍微增加一点可见度
         .margin({ top: -20, right: -20 })
-        .blur(10) // 模糊处理，融入背景
+        .blur(15)
 
       // 2. 主要内容
       Column() {
         // 头部：图标 + 标题
         Row() {
           Stack({ alignContent: Alignment.Center }) {
-            // 图标底色光晕
             Circle({ width: 32, height: 32 })
               .fill(this.themeColor)
               .opacity(0.15)
-            
+
             Image(this.icon)
               .width(16)
               .height(16)
-              .fillColor(this.themeColor) 
+              .fillColor(this.themeColor)
               .objectFit(ImageFit.Contain)
           }
           .margin({ right: 10 })
@@ -51,7 +56,7 @@ struct HealthItemComponent {
           Text(this.title)
             .fontSize(13)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#666')
+            .fontColor('#555') // 字体稍微加深
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
@@ -62,12 +67,12 @@ struct HealthItemComponent {
           Text(this.value)
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#2C3E50') // 深蓝灰，比纯黑更有质感
-          
+            .fontColor('#2C3E50')
+
           if (this.unit) {
             Text(this.unit)
               .fontSize(11)
-              .fontColor('#999')
+              .fontColor('#888')
               .margin({ left: 4, bottom: 4 })
           }
         }
@@ -77,24 +82,22 @@ struct HealthItemComponent {
       .padding(18)
       .width('100%')
       .borderRadius(24)
-      // 优化：调整渐变透明度，模拟强光照射下的玻璃反光
+      // 玻璃拟态背景：更通透，以展示下方鲜艳的背景
       .linearGradient({
         angle: 135,
-        colors: [['rgba(255, 255, 255, 0.8)', 0.0], ['rgba(255, 255, 255, 0.2)', 1.0]]
+        colors: [[CARD_BG_GRADIENT_START, 0.0], [CARD_BG_GRADIENT_END, 1.0]]
       })
-      // 优化：增加模糊度，增强磨砂质感
-      .backdropBlur(70)
-      
-      // 优化：边框透明度调整为 50% (#80)，保持色彩同时增加通透感
-      .border({ 
-        width: 2.0,
-        color: this.themeColor.startsWith('#') ? ('#80' + this.themeColor.substring(1)) : this.themeColor 
-      }) 
-      // 优化：大幅增加阴影半径和偏移，增强立体悬浮感 (25% 透明度)
-      .shadow({ 
-        radius: 65,
-        color: this.themeColor.startsWith('#') ? ('#50' + this.themeColor.substring(1)) : '#40000000',
-        offsetY: 50
+      .backdropBlur(40) // 高斯模糊
+      // 边框
+      .border({
+        width: 1.5,
+        color: this.themeColor.startsWith('#') ? ('#66' + this.themeColor.substring(1)) : this.themeColor // 降低边框透明度
+      })
+      // 阴影
+      .shadow({
+        radius: 40,
+        color: this.themeColor.startsWith('#') ? ('#30' + this.themeColor.substring(1)) : 'rgba(0,0,0,0.1)',
+        offsetY: 20
       })
       .onClick(() => {
         this.getUIContext().getRouter().pushUrl({ url: this.pageName })
@@ -108,19 +111,8 @@ struct HealthItemComponent {
 struct HomePage {
   @State currentData: HealthData = new HealthData(0, 0, 0, 0);
   @State todaySleep: SleepData | null = null;
-  @State todaySteps: number = 0; // 从数据库加载“今日步数”
+  @State todaySteps: number = 0;
   private healthVM: HealthVM = new HealthVM();
-
-  private STEP_GOAL: number = 5000;
-  private SLEEP_GOAL: number = 8;
-
-  private getStepColor(steps: number): string {
-    return steps >= this.STEP_GOAL ? '#00C853' : '#FF7043'; 
-  }
-
-  private getSleepColor(hours: number): string {
-    return hours >= this.SLEEP_GOAL ? '#448AFF' : '#FFCA28';
-  }
 
   private handleLogout(): void {
     AlertDialog.show({
@@ -142,13 +134,10 @@ struct HomePage {
   }
 
   private async executeLogoutAction(): Promise<void> {
-    // 清理内存状态 (AppStorage)
     AppStorage.setOrCreate('isLogin', false);
-    AppStorage.setOrCreate('currentUser', null); // 显式置空用户信息
+    AppStorage.setOrCreate('currentUser', null);
     AppStorage.setOrCreate('BodyInfoList', []);
 
-    // 安全路由跳转
-    // 使用 replaceUrl 确保用户无法点击“返回”回到私密页面
     this.getUIContext().getRouter().replaceUrl({
       url: 'pages/LoginPage'
     }).catch((err: Error) => {
@@ -161,7 +150,6 @@ struct HomePage {
     const lastData = await this.healthVM.loadLastData(context);
     if (lastData) this.currentData = lastData;
 
-    // 从数据库加载“今日步数”
     await this.loadTodaySteps();
     await this.loadSleepData();
   }
@@ -173,10 +161,7 @@ struct HomePage {
       this.todaySteps = 0;
       return;
     }
-
-    // 只补历史几天的模拟数据，不影响今天
     await HealthDB.getInstance().initMockHealthData(user.id, 7);
-
     const list = await HealthDB.getInstance().getDailyStepsSummary(user.id, 7);
     const todayStr = new Date().toISOString().split('T')[0];
     const todayItem = list.find(item => {
@@ -199,9 +184,7 @@ struct HomePage {
   onPageShow() {
     const context = this.getUIContext().getHostContext() as Context;
     this.healthVM.startMonitoring(context, 3000, async (data: HealthData) => {
-      // 实时监测：仅更新实时心率/血氧等
       this.currentData = data;
-      // 统一从数据库“日汇总”读取今日步数，保证与 StepsPage 完全一致
       await this.loadTodaySteps();
     });
     this.loadSleepData();
@@ -212,40 +195,10 @@ struct HomePage {
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      // 1. 背景层 (科技感光影氛围)
-      Stack() {
-        // 基础底色 - 极淡的冷灰蓝
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor('#F2F5F9') 
+      // --- 1. 背景层 (更新：与 ExploreView 一致的鲜艳色块) ---
+      this.BackgroundDecorations()
 
-        // 装饰光球 1 (左上 - 科技蓝)
-        Circle({ width: 280, height: 280 })
-          .fill('#4A90E2')
-          .opacity(0.08)
-          .position({ x: -80, y: -80 })
-          .blur(60)
-
-        // 装饰光球 2 (右中 - 活力紫)
-        Circle({ width: 220, height: 220 })
-          .fill('#9B59B6')
-          .opacity(0.06)
-          .position({ x: '70%', y: '25%' })
-          .blur(50)
-          
-        // 装饰光球 3 (左下 - 清新绿)
-        Circle({ width: 260, height: 260 })
-          .fill('#2ECC71')
-          .opacity(0.05)
-          .position({ x: -60, y: '65%' })
-          .blur(70)
-      }
-      .width('100%')
-      .height('100%')
-      .zIndex(0)
-
-      // 2. 主内容区域
+      // --- 2. 主内容区域 ---
       Column() {
         // Header
         Row() {
@@ -256,7 +209,7 @@ struct HomePage {
               .fontColor('#2C3E50')
             Text('您的智能健康管家')
               .fontSize(13)
-              .fontColor('#8899A6') // 更高级的灰色
+              .fontColor('#7F8C8D')
               .margin({ top: 4 })
               .letterSpacing(1)
           }
@@ -264,45 +217,44 @@ struct HomePage {
 
           Blank()
 
-          // 头像按钮 - 悬浮玻璃质感
+          // 头像
           Image(AppStorage.get('avatar') ?? $r('app.media.profileIcon'))
             .width(42)
             .height(42)
-            .borderRadius(21)                       // 圆形
+            .borderRadius(21)
             .objectFit(ImageFit.Cover)
-            .border({ width: 2, color: '#80FFFFFF' }) // 白色描边
-            .backdropBlur(10)
-            .shadow({ radius: 10, color: 'rgba(92, 124, 255, 0.2)', offsetY: 4 })
+            .border({ width: 2, color: 'rgba(255,255,255,0.8)' })
+            .shadow({ radius: 10, color: 'rgba(74, 144, 226, 0.3)', offsetY: 4 })
             .onClick(() => {
               this.getUIContext().getRouter().pushUrl({ url: 'pages/UserCenterPage' });
             })
         }
         .width('100%')
         .padding({ left: 24, right: 24, top: 20, bottom: 10 })
+        .zIndex(2)
 
         Scroll() {
-          Column({ space: 16 }) { 
-            // 人体模型卡片 - Hero Card (特殊样式)
+          Column({ space: 16 }) {
+            // 人体模型卡片 - Hero Card
             Stack({ alignContent: Alignment.TopStart }) {
-              // 背景装饰
+              // 卡片内部装饰
               Circle({ width: 140, height: 140 })
                 .fill('#5C7CFF')
-                .opacity(0.06)
+                .opacity(0.1) // 略微提高
                 .position({ x: '60%', y: -30 })
-                .blur(20)
+                .blur(30)
 
               Column() {
                 Image($r('app.media.body2'))
                   .height(170)
                   .objectFit(ImageFit.Contain)
                   .margin({ bottom: 16 })
-                  // 图片增加投影，产生悬浮感
-                  .shadow({ radius: 15, color: 'rgba(0,0,0,0.1)', offsetY: 8 })
+                  .shadow({ radius: 20, color: 'rgba(0,0,0,0.12)', offsetY: 10 })
 
                 Row() {
                   Column() {
                     Text('身体健康档案')
-                      .fontSize(18) 
+                      .fontSize(18)
                       .fontColor('#333')
                       .fontWeight(FontWeight.Bold)
                     Text('BMI · 体围数据 · 体态分析')
@@ -314,7 +266,7 @@ struct HomePage {
 
                   Blank()
 
-                  // 按钮 - 渐变胶囊
+                  // 按钮
                   Row() {
                     Text('查看详情')
                       .fontSize(12)
@@ -330,7 +282,7 @@ struct HomePage {
                     angle: 90,
                     colors: [['#5C7CFF', 0.0], ['#448AFF', 1.0]]
                   })
-                  .shadow({ radius: 8, color: 'rgba(92, 124, 255, 0.3)', offsetY: 3 })
+                  .shadow({ radius: 8, color: 'rgba(92, 124, 255, 0.4)', offsetY: 4 })
                   .padding({ left: 14, right: 10, top: 8, bottom: 8 })
                   .borderRadius(18)
                 }
@@ -341,15 +293,14 @@ struct HomePage {
             }
             .width('100%')
             .borderRadius(28)
-            // 优化：Hero 卡片增强玻璃质感和反光
+            // 玻璃拟态
             .linearGradient({
               angle: 135,
-              colors: [['rgba(255, 255, 255, 0.85)', 0.0], ['rgba(244, 247, 255, 0.25)', 1.0]]
+              colors: [[CARD_BG_GRADIENT_START, 0.0], [CARD_BG_GRADIENT_END, 1.0]]
             })
             .backdropBlur(40)
-            // 优化：身体健康档案边框颜色为蓝色 (#5C7CFF) + 50% 透明度
-            .border({ width: 1.5, color: '#805C7CFF' }) 
-            .shadow({ radius: 35, color: 'rgba(92, 124, 255, 0.3)', offsetY: 15 }) 
+            .border({ width: 1.5, color: 'rgba(92, 124, 255, 0.3)' })
+            .shadow({ radius: 35, color: 'rgba(92, 124, 255, 0.25)', offsetY: 15 })
             .onClick(() => {
               this.getUIContext().getRouter().pushUrl({ url: 'pages/HomeTo/BodyInfoPage' })
             })
@@ -360,23 +311,21 @@ struct HomePage {
                 title: '今日步数',
                 value: `${this.todaySteps}`,
                 unit: '步',
-                // 保持：今日步数边框颜色为橙红色 (#FF7043)
                 themeColor: '#FF7043',
                 pageName: 'pages/HomeTo/StepsPage',
                 icon: $r('app.media.steps')
               })
-              .layoutWeight(1)
+                .layoutWeight(1)
 
               HealthItemComponent({
                 title: '睡眠时长',
                 value: this.todaySleep ? `${(this.todaySleep.totalMinutes / 60).toFixed(1)}` : '0.0',
                 unit: '小时',
-                // 修改：睡眠时长边框颜色为深蓝色 (#2962FF)
                 themeColor: '#2962FF',
                 pageName: 'pages/HomeTo/SleepPage',
                 icon: $r('app.media.sleep')
               })
-              .layoutWeight(1)
+                .layoutWeight(1)
             }
 
             // 实时状态卡片
@@ -384,7 +333,6 @@ struct HomePage {
               title: '实时健康监测',
               value: `${this.currentData.heartRate} bpm  |  ${this.currentData.bloodOxygen}%`,
               unit: '心率 / 血氧',
-              // 修改：实时健康监测边框颜色为绿色 (#00C853)
               themeColor: '#00C853',
               pageName: 'features/healthStatus/view/StatusPage',
               icon: $r('app.media.instantcheck')
@@ -395,7 +343,6 @@ struct HomePage {
               title: '疾病历史档案',
               value: '查看记录',
               unit: '',
-              // 保持：疾病历史记录边框颜色为深紫色 (#7E57C2)
               themeColor: '#7E57C2',
               pageName: 'pages/HomeTo/DiseasePage',
               icon: $r('app.media.diseasehistory')
@@ -414,11 +361,50 @@ struct HomePage {
 
       // 3. 底部导航栏
       myNavigator()
-     
+
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F2F5F9') // 保持背景一致
+    .backgroundColor(COLOR_BG_BASE)
+  }
+
+  /**
+   * 构建背景装饰层
+   * 与 ExploreView 风格统一：鲜艳、高模糊、白底
+   */
+  @Builder
+  BackgroundDecorations(): void {
+    Stack() {
+      // 1. 左上角 - 主色调蓝色 (Blue)
+      // 略微调大尺寸，覆盖 Header 区域
+      Circle({ width: 320, height: 320 })
+        .fill('rgba(74, 144, 226, 0.35)') // Opacity 0.35
+        .position({ x: -80, y: -100 })
+        .blur(80)
+
+      // 2. 右侧中部 - 活力紫色 (Purple)
+      // 对应“身体档案”和“睡眠”卡片位置
+      Circle({ width: 280, height: 280 })
+        .fill('rgba(108, 92, 231, 0.35)')
+        .position({ x: '60%', y: 150 })
+        .blur(70)
+
+      // 3. 左下方 - 暖色强调 (Red/Pink)
+      // 对应“步数”位置
+      Circle({ width: 300, height: 300 })
+        .fill('rgba(255, 107, 107, 0.25)')
+        .position({ x: -100, y: 400 })
+        .blur(90)
+
+      // 4. 右下角 - 清新绿色 (Green)
+      // 对应“实时监测”和底部
+      Circle({ width: 240, height: 240 })
+        .fill('rgba(46, 204, 113, 0.25)')
+        .position({ x: '50%', y: '85%' })
+        .blur(60)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(COLOR_BG_BASE)
   }
 }
-
