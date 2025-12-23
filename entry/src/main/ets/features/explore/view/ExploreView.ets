@@ -322,7 +322,7 @@ export struct ExploreView {
     }
     .autoPlay(true)
     .interval(5000)
-    .height(200)
+    .height(150)
     .itemSpace(16)
     .margin({ left: 24, right: 24 })
     .borderRadius(24)
@@ -344,7 +344,7 @@ export struct ExploreView {
       Image($rawfile(`explore_pictures/${imagePath}`))
         .width('100%')
         .height('100%')
-        .objectFit(ImageFit.Cover)
+        .objectFit(ImageFit.Contain)
         .borderRadius(24)
     }
     .width('100%')

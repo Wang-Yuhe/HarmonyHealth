@@ -42,7 +42,7 @@ export struct myNavigator {
       this.buildNavItem($r('app.media.profileIcon'), '咨询', 2, 'pages/AskAIPage')
     }
     .width('100%')
-    .height(40)
+    .height(80)
     .backgroundColor('#FFFFFF')
     .padding({
       left: 16,
@@ -56,7 +56,7 @@ export struct myNavigator {
       offsetX: 0,
       offsetY: -4
     })
-    .position({ x: 0, y: '100%' })
+    .position({ x: 0, y: '104%' })
     .markAnchor({ x: 0, y: '100%' })
   }
 
