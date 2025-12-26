@@ -1,0 +1,43 @@
+{
+  "name": "harmonyhealth",
+  "version": "1.0.0",
+  "description": "HarmonyHealth - A comprehensive health management application for HarmonyOS",
+  "main": "index.js",
+  "scripts": {
+    "test": "hvigor test",
+    "test:unit": "hvigor test --test-type=unit",
+    "test:performance": "hvigor test --test-type=performance",
+    "test:stability": "hvigor test --test-type=stability",
+    "test:ohtest": "hvigor runOhosTest",
+    "build": "hvigor assemble",
+    "build:test": "hvigor assembleOhosTest",
+    "run:test": "hvigor runOhosTest",
+    "clean": "hvigor clean",
+    "install:deps": "ohpm install"
+  },
+  "keywords": [
+    "harmonyos",
+    "health",
+    "fitness",
+    "arkts",
+    "harmony"
+  ],
+  "author": "HarmonyHealth Team",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@ohos/hvigor": "^4.0.0",
+    "@ohos/hypium": "1.0.24",
+    "@ohos/hamock": "1.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Wang-Yuhe/harmonyhealth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Wang-Yuhe/harmonyhealth/issues"
+  },
+  "homepage": "https://github.com/Wang-Yuhe/harmonyhealth#readme"
+}

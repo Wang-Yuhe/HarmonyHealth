@@ -1,3 +1,113 @@
+# HarmonyHealth
+
+一个基于HarmonyOS开发的综合健康管理应用，提供健康数据记录、AI健康咨询、运动追踪等功能。
+
+## 快速开始
+
+### 环境要求
+- DevEco Studio 4.0+
+- HarmonyOS SDK 4.0+
+- Node.js 16+ (可选，用于命令行工具)
+
+### 运行测试
+
+#### 方法1: 使用DevEco Studio (推荐)
+1. 打开DevEco Studio
+2. 导入项目: `File` > `Open` > 选择项目根目录
+3. 运行测试: 右键 `entry/src/ohosTest/ets/test/List.test.ets` > `Run`
+
+**注意**: 测试文件位于ohosTest目录下，不是test目录下。
+
+#### 方法2: 使用命令行脚本
+```bash
+# Windows
+run-tests.bat all
+
+# 或Linux/macOS
+bash run-tests.sh all
+```
+
+#### 方法3: 使用npm脚本
+```bash
+npm install
+npm run test
+```
+
+### 构建和运行
+```bash
+# 构建应用
+npm run build
+
+# 构建测试版本
+npm run build:test
+
+# 运行测试
+npm run run:test
+```
+
+## 项目结构
+
+```
+HarmonyHealth/
+├── entry/                          # 主模块
+│   ├── src/
+│   │   ├── main/                   # 主源码
+│   │   │   ├── ets/
+│   │   │   │   ├── common/         # 公共组件和工具
+│   │   │   │   ├── database/       # 数据库相关
+│   │   │   │   ├── features/       # 功能模块
+│   │   │   │   └── pages/          # 页面
+│   │   ├── test/                   # 单元测试
+│   │   ├── ohosTest/               # 集成测试
+│   │   └── mock/                   # 模拟数据
+│   └── build-profile.json5         # 构建配置
+├── hvigor/                         # 构建配置
+├── oh_modules/                     # 依赖模块
+└── build-profile.json5             # 应用构建配置
+```
+
+## 测试说明
+
+项目包含完整的测试套件：
+
+- **单元测试** (`LocalUnit.test.ets`): 8个测试用例
+- **性能测试** (`Performance.test.ets`): 8个测试用例
+- **稳定性测试** (`Stability.test.ets`): 8个测试用例
+- **异常处理测试** (`ExceptionHandling.test.ets`): 8个测试用例
+
+详细测试文档请参考：
+- [系统测试与稳定性综合文档](SYSTEM_TEST_STABILITY_COMPREHENSIVE_DOC.md)
+- [测试执行指南](TEST_EXECUTION_GUIDE.md)
+- [测试执行时间分析](TEST_EXECUTION_TIME.md)
+- [测试故障排除指南](TEST_TROUBLESHOOTING.md)
+- [测试结果报告](TEST_RESULTS_REPORT.md)
+
+## 功能特性
+
+- 健康数据记录和追踪
+- AI健康咨询助手
+- 运动数据管理
+- 用户账户管理
+- 数据可视化图表
+
+## 技术栈
+
+- **框架**: HarmonyOS ArkTS
+- **UI**: ArkUI声明式UI框架
+- **测试**: @ohos/hypium测试框架
+- **构建**: Hvigor构建工具
+- **包管理**: OHPM
+
+## 开发指南
+
+### 代码规范
+- 使用TypeScript编写
+- 遵循HarmonyOS开发规范
+- 组件化开发模式
+
+### 测试驱动开发
+项目采用测试驱动开发模式，所有新功能都需要对应的测试用例。
+
 ## 在dev分支工作
 
 ## 可复用组件说明
