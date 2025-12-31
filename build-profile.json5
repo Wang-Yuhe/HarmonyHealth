@@ -1,6 +1,5 @@
 {
   "app": {
-    "signingConfigs": [],
     "products": [
       {
         "name": "default",
@@ -18,10 +17,25 @@
     ],
     "buildModeSet": [
       {
-        "name": "debug",
+        "name": "debug"
       },
       {
         "name": "release"
+      }
+    ],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\计算机\\.ohos\\config\\default_HarmonyHealth_UTZIkYckCUDWaCDe0SUcOk7fQxJO0OJI0zMFX81E_T4=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B67486122481274DDC145060FAF34DE6096F67FBF85250BDDF2A9C50B308191D50558B40C43BA57",
+          "profile": "C:\\Users\\计算机\\.ohos\\config\\default_HarmonyHealth_UTZIkYckCUDWaCDe0SUcOk7fQxJO0OJI0zMFX81E_T4=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\计算机\\.ohos\\config\\default_HarmonyHealth_UTZIkYckCUDWaCDe0SUcOk7fQxJO0OJI0zMFX81E_T4=.p12",
+          "storePassword": "0000001BCEBB3F6E1D11A6EC98F618B88CA6144267E525E63324D32B8751B76D4D890CBE14492C203B213E"
+        }
       }
     ]
   },

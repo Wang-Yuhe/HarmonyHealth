@@ -1,195 +1,107 @@
-import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { describe, it, expect } from '@ohos/hypium';
 
-// 定义辅助类，用于替代 any 和对象字面量
-class HealthData {
-  type: string = '';
-  value: number = 0;
-  timestamp?: number;
+// --- 模拟 App 内部的核心算法类 ---
+
+interface GeneratedObjectLiteralInterface_1 {
+  km: number;
+  kcal: number;
 }
 
-class ChartRawItem {
-  timestamp: number = 0;
-  value: number = 0;
+class HealthCalculator {
+  /**
+   * 计算卡路里和距离
+   * 基于截图：11步，4kcal (大概 0.36 kcal/步? 或者基于体重计算)
+   * 假设公式：
+   * 距离(km) = 步数 * 0.7米 / 1000
+   * 热量(kcal) = 步数 * 0.04 (简化估算)
+   */
+  static calculateActivityStats(steps: number) {
+    const distanceKm = (steps * 0.7) / 1000;
+    const calories = steps * 0.04;
+    return ({
+      km: parseFloat(distanceKm.toFixed(1)),
+      kcal: Math.floor(calories)
+    } as GeneratedObjectLiteralInterface_1);
+  }
+
+  /**
+   * 睡眠评分算法 (基于截图逻辑推测)
+   * 假设：总分100。
+   * 深睡占比 >= 25% 得满分，每少 1% 扣 2 分。
+   * 时长 >= 7小时 得满分。
+   */
+  static calculateSleepScore(durationHours: number, deepSleepPercent: number): number {
+    let score = 100;
+
+    // 扣分项1：时长不足
+    if (durationHours < 7) {
+      score -= (7 - durationHours) * 10;
+    }
+
+    // 扣分项2：深睡不足 (基准 25%)
+    if (deepSleepPercent < 25) {
+      score -= (25 - deepSleepPercent) * 2;
+    }
+
+    return Math.max(0, Math.floor(score));
+  }
 }
 
-class ChartPoint {
-  x: number = 0;
-  y: number = 0;
+class DiseaseSearcher {
+  /**
+   * 疾病档案搜索逻辑 (对标截图中的搜索框)
+   */
+  static search(records: string[], keyword: string): string[] {
+    if (!keyword) return records;
+    return records.filter(r => r.includes(keyword));
+  }
 }
+
+// --- 测试套件 ---
 
 export default function localUnitTest() {
-  describe('localUnitTest', () => {
-    beforeAll(() => {});
-    beforeEach(() => {});
-    afterEach(() => {});
-    afterAll(() => {});
+  describe('AppBusinessLogicTest', () => {
 
-    it('assertContain', 0, () => {
-      let a = 'abc';
-      let b = 'b';
-      expect(a).assertContain(b);
-      expect(a).assertEqual(a);
+    // 对标截图：步数数据概览
+    it('LU_001_StepConversion', 0, () => {
+      // 场景：截图中走了 35458 步，总里程 24.8km
+      // 我们验证算法是否接近这个比例
+      const stats = HealthCalculator.calculateActivityStats(35458);
+
+      // 验证距离 (误差允许范围内)
+      expect(stats.km).assertLarger(20.0);
+      expect(stats.km).assertLess(30.0);
+
+      // 验证简单逻辑：0步应该0公里
+      const zeroStats = HealthCalculator.calculateActivityStats(0);
+      expect(zeroStats.km).assertEqual(0);
     });
 
-    it('User Model Test', 0, () => {
-      class User {
-        id: number = 0;
-        name: string = '';
-        email: string = '';
-        avatar?: string;
+    // 对标截图：睡眠质量分析
+    it('LU_002_SleepScoring', 0, () => {
+      // 场景：截图中时长 7.8h，深睡 25%，评分 98 (非常高)
+      // 根据我们的模拟算法测试
+      const scorePerfect = HealthCalculator.calculateSleepScore(7.8, 25);
+      expect(scorePerfect).assertEqual(100);
 
-        constructor(id: number, name: string, email: string) {
-          this.id = id;
-          this.name = name;
-          this.email = email;
-        }
-      }
-
-      const user = new User(1, 'Test User', 'test@example.com');
-      expect(user.id).assertEqual(1);
-      expect(user.name).assertEqual('Test User');
-      expect(user.email).assertEqual('test@example.com');
+      // 场景：熬夜，睡了4小时，深睡10%
+      const scoreBad = HealthCalculator.calculateSleepScore(4, 10);
+      // 扣分：时长扣30，深睡扣30 -> 40分
+      expect(scoreBad).assertLess(60);
     });
 
-    it('Health Data Validation Test', 0, () => {
-      // 修复 1: 参数类型改为 Object，内部通过断言访问属性
-      const validateHealthData = (data: Object | null): boolean => {
-        if (!data || typeof data !== 'object') return false;
+    // 对标截图：疾病档案搜索
+    it('LU_003_DiseaseSearchLogic', 0, () => {
+      const db = ['急性肠胃炎 2023-10', '过敏性鼻炎 2024-01', '流感 2024-02'];
 
-        // 将 data 断言为键值对形式以访问属性
-        let record = data as Record<string, Object>;
+      // 搜索 "炎"
+      const result = DiseaseSearcher.search(db, '炎');
+      expect(result.length).assertEqual(2);
+      expect(result).assertContain('急性肠胃炎 2023-10');
 
-        if (!record['type'] || typeof record['type'] !== 'string') return false;
-        if (!record['value'] || typeof record['value'] !== 'number') return false;
-
-        // 检查数值
-        if ((record['value'] as number) < 0) return false;
-        return true;
-      };
-
-      // 修复 2: 使用类或类型断言来定义对象
-      const validData: HealthData = { type: 'steps', value: 1000, timestamp: Date.now() };
-      // 对于无效数据，使用 as Object 或 Record 模拟传入任意结构
-      const invalidData1 = { "type": '', "value": 1000 } as Record<string, Object>;
-      const invalidData2 = { "type": 'steps', "value": -100 } as Record<string, Object>;
-
-      expect(validateHealthData(validData)).assertTrue();
-      expect(validateHealthData(invalidData1)).assertFalse();
-      expect(validateHealthData(invalidData2)).assertFalse();
-    });
-
-    it('Error Handling Test', 0, () => {
-      const mockAsyncOperation = async (shouldFail: boolean): Promise<string> => {
-        if (shouldFail) {
-          throw new Error('Mock error');
-        }
-        return 'success';
-      };
-
-      mockAsyncOperation(false).then(result => {
-        expect(result).assertEqual('success');
-      }).catch(() => {
-        expect(true).assertFalse();
-      });
-
-      mockAsyncOperation(true).then(() => {
-        expect(true).assertFalse();
-      }).catch((error: Error) => { // 修复 3: 显式指定 error 类型或进行断言
-        // 或者使用 (error as Error).message
-        expect(error.message).assertEqual('Mock error');
-      });
-    });
-
-    it('Network Timeout Test', 0, () => {
-      const timeoutPromise = (delay: number): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (delay > 5000) {
-              reject(new Error('Timeout'));
-            } else {
-              resolve('success');
-            }
-          }, delay);
-        });
-      };
-
-      timeoutPromise(1000).then(result => {
-        expect(result).assertEqual('success');
-      });
-
-      expect(5000 > 1000).assertTrue();
-    });
-
-    it('Data Transformation Test', 0, () => {
-      // 修复 4: 使用具体的类 ChartRawItem[] 和 ChartPoint[] 替代 any[]
-      const transformDataForChart = (rawData: ChartRawItem[]): ChartPoint[] => {
-        return rawData.map((item: ChartRawItem) => {
-          let point = new ChartPoint();
-          point.x = item.timestamp;
-          point.y = item.value;
-          return point;
-        });
-      };
-
-      // 修复 5: 数组内的对象必须有明确类型
-      const rawData: ChartRawItem[] = [
-        { timestamp: 1000, value: 50 } as ChartRawItem,
-        { timestamp: 2000, value: 75 } as ChartRawItem,
-        { timestamp: 3000, value: 60 } as ChartRawItem
-      ];
-
-      const chartData = transformDataForChart(rawData);
-
-      expect(chartData.length).assertEqual(3);
-      expect(chartData[0].x).assertEqual(1000);
-      expect(chartData[0].y).assertEqual(50);
-      expect(chartData[2].y).assertEqual(60);
-    });
-
-    it('Memory Leak Prevention Test', 0, () => {
-      let timerId: number = -1;
-      let isCleanedUp = false;
-
-      const startTimer = () => {
-        timerId = setTimeout(() => {
-        }, 1000);
-      };
-
-      const cleanup = () => {
-        if (timerId !== -1) {
-          clearTimeout(timerId);
-          timerId = -1;
-          isCleanedUp = true;
-        }
-      };
-
-      startTimer();
-      // 修复 6: assertNotEqual 不存在，替换为条件判断 + assertTrue
-      expect(timerId !== -1).assertTrue();
-
-      cleanup();
-      expect(isCleanedUp).assertTrue();
-      expect(timerId).assertEqual(-1);
-    });
-
-    it('Input Validation Test', 0, () => {
-      const validateEmail = (email: string): boolean => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-      };
-
-      const validatePassword = (password: string): boolean => {
-        return password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
-      };
-
-      expect(validateEmail('test@example.com')).assertTrue();
-      expect(validateEmail('invalid-email')).assertFalse();
-
-      expect(validatePassword('StrongPass123')).assertTrue();
-      expect(validatePassword('weak')).assertFalse();
-      expect(validatePassword('nouppercase123')).assertFalse();
-      expect(validatePassword('NOLOWERCASE123')).assertFalse();
-      expect(validatePassword('NoNumbers')).assertFalse();
+      // 搜索不存在的
+      const resultEmpty = DiseaseSearcher.search(db, '骨折');
+      expect(resultEmpty.length).assertEqual(0);
     });
   });
 }

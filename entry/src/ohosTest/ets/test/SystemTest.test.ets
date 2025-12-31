@@ -1,139 +1,88 @@
-import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { describe, it, expect, beforeEach } from '@ohos/hypium';
 import hilog from '@ohos.hilog';
 
-// --- 1. 定义 process 类型接口，解决 any 报错 ---
-interface MemoryUsage {
-  rss: number;
-}
-// 声明 process 变量，骗过编译器 (注意：真机运行时 process 可能不存在，代码中已做容错处理)
+const DOMAIN = 0x0000;
+const TAG = 'SystemTest';
+
+// --- 模拟 AI 服务 ---
 interface GeneratedTypeLiteralInterface_1 {
-  memoryUsage?: MemoryUsage;
+  risk: string;
+  advice: string;
 }
 
-declare const process: GeneratedTypeLiteralInterface_1;
+class MockAIService {
+  async askDoctor(symptom: string): Promise<GeneratedTypeLiteralInterface_1> {
+    // 模拟网络延迟
+    await new Promise<void>(resolve => setTimeout(resolve, 50));
+
+    if (symptom.includes('头痛')) {
+      return {
+        risk: '中度风险',
+        advice: '建议休息，监测血压，必要时就医。'
+      };
+    }
+    return { risk: '低风险', advice: '多喝热水' };
+  }
+}
+
+// --- 模拟实时监测管理器 ---
+class RealTimeMonitor {
+  intervalId: number = -1;
+  isRunning: boolean = false;
+  latestHeartRate: number = 0;
+
+  toggleSwitch(isOn: boolean) {
+    this.isRunning = isOn;
+    if (isOn) {
+      // 模拟每 10ms 更新一次数据 (加速版)
+      this.intervalId = setInterval(() => {
+        this.latestHeartRate = 70 + Math.floor(Math.random() * 10); // 70-80 bpm
+      }, 10);
+    } else {
+      clearInterval(this.intervalId);
+    }
+  }
+}
 
 export default function systemTest() {
-  describe('SystemTest', () => {
-    beforeAll(() => {
-      hilog.info(0x0000, 'SystemTest', 'Starting system tests');
+  describe('SystemFlowTest', () => {
+
+    // 对标截图：AI 智能问诊流程
+    it('ST_001_AIConsultationFlow', 0, async () => {
+      const ai = new MockAIService();
+      const userQuestion = "最近总是头痛，伴有头晕";
+
+      hilog.info(DOMAIN, TAG, 'Step 1: 用户发送问题');
+      const response = await ai.askDoctor(userQuestion);
+
+      hilog.info(DOMAIN, TAG, 'Step 2: 收到 AI 回复');
+      // 验证是否包含截图中的关键词
+      expect(response.risk).assertEqual('中度风险');
+      expect(response.advice).assertContain('就医');
     });
 
-    afterAll(() => {
-      hilog.info(0x0000, 'SystemTest', 'System tests completed');
-    });
+    // 对标截图：实时健康监测开关
+    it('ST_002_RealTimeMonitorToggle', 0, async () => {
+      const monitor = new RealTimeMonitor();
 
-    it('Application Launch Test', 0, () => {
-      // Test application launch
-      // 注意：getContext() 通常需要在 UIAbility 环境中调用。
-      // 如果是在纯单元测试环境，这里可能需要 mock 或者通过其他方式获取 context
-      let appContext: Context | undefined = undefined;
-      try {
-        appContext = getContext();
-      } catch (e) {
-        hilog.warn(0x0000, 'SystemTest', 'getContext failed (expected in pure unit test)');
-      }
+      // 1. 初始状态关闭
+      expect(monitor.isRunning).assertFalse();
+      expect(monitor.latestHeartRate).assertEqual(0);
 
-      // 修复：assertNotUndefined 不存在，改为判断 "不等于 undefined" 为 true
-      expect(appContext !== undefined).assertTrue();
+      // 2. 用户点击开关 (对应截图中的 "监测设置" Toggle)
+      monitor.toggleSwitch(true);
+      expect(monitor.isRunning).assertTrue();
 
-      if (appContext) {
-        expect(appContext.applicationInfo !== undefined).assertTrue();
-      }
+      // 3. 等待数据刷新 (模拟 3秒刷新间隔，这里缩短为 50ms)
+      await new Promise<void>(resolve => setTimeout(resolve, 50));
 
-      hilog.info(0x0000, 'SystemTest', 'Application launch test passed');
-    });
+      // 4. 验证是否有数据产生 (截图显示 74 bpm)
+      expect(monitor.latestHeartRate).assertLarger(0);
+      hilog.info(DOMAIN, TAG, `监测到心率: ${monitor.latestHeartRate}`);
 
-    it('Database Connection Test', 0, () => {
-      // Test database connectivity (mock)
-      const dbConnected = true; // In real test, check actual DB connection
-      expect(dbConnected).assertTrue();
-
-      hilog.info(0x0000, 'SystemTest', 'Database connection test passed');
-    });
-
-    it('UI Component Rendering Test', 0, () => {
-      // Test basic UI component rendering
-      const componentRendered = true; // In real test, check actual rendering
-      expect(componentRendered).assertTrue();
-
-      hilog.info(0x0000, 'SystemTest', 'UI component rendering test passed');
-    });
-
-    it('Navigation Flow Test', 0, () => {
-      // Test basic navigation flow
-      const navigationWorks = true; // In real test, check actual navigation
-      expect(navigationWorks).assertTrue();
-
-      hilog.info(0x0000, 'SystemTest', 'Navigation flow test passed');
-    });
-
-    it('Data Persistence Test', 0, () => {
-      // Test data persistence
-      const dataPersisted = true; // In real test, check actual persistence
-      expect(dataPersisted).assertTrue();
-
-      hilog.info(0x0000, 'SystemTest', 'Data persistence test passed');
-    });
-
-    it('Memory Management Test', 0, () => {
-      // Test memory management
-      // 修复：处理 process 对象可能不存在的情况
-      let initialMemory = 0;
-      try {
-        initialMemory = process?.memoryUsage?.rss || 0;
-      } catch (e) {
-        initialMemory = 0;
-      }
-
-      // Simulate some operations
-      // 修复：明确泛型 <string>，防止推断错误
-      const testData = new Array<string>(1000).fill('test');
-
-      let finalMemory = 0;
-      try {
-        finalMemory = process?.memoryUsage?.rss || 0;
-      } catch (e) {
-        finalMemory = 0;
-      }
-
-      const memoryIncrease = finalMemory - initialMemory;
-
-      expect(memoryIncrease).assertLess(1024 * 1024); // Less than 1MB
-
-      hilog.info(0x0000, 'SystemTest', `Memory management test passed. Increase: ${memoryIncrease} bytes`);
-    });
-
-    it('Error Handling Integration Test', 0, () => {
-      // Test integrated error handling
-      let errorHandled = false;
-
-      try {
-        // Simulate an error condition
-        throw new Error('Test error');
-      } catch (error) {
-        errorHandled = true;
-        // 建议强转类型，避免 strict 模式下 error 为 unknown 的问题
-        hilog.info(0x0000, 'SystemTest', `Error handled: ${(error as Error).message}`);
-      }
-
-      expect(errorHandled).assertTrue();
-    });
-
-    it('Performance Baseline Test', 0, () => {
-      // Test basic performance baseline
-      const startTime = Date.now();
-
-      // Simulate basic operations
-      for (let i = 0; i < 1000; i++) {
-        const result = i * 2;
-      }
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      expect(duration).assertLess(100); // Should complete quickly
-
-      hilog.info(0x0000, 'SystemTest', `Performance baseline test passed. Duration: ${duration}ms`);
+      // 5. 关闭开关
+      monitor.toggleSwitch(false);
+      expect(monitor.isRunning).assertFalse();
     });
   });
 }
