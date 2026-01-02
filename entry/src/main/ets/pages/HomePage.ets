@@ -1,6 +1,6 @@
 /**
  * @file HomePage.ets
- * @description 应用主界面（UI 升级版 - 背景风格与探索页统一，增强弥散光感）
+ * @description 应用主界面（已集成传感器实时监听）
  */
 import { myNavigator } from '../common/components/Navigator';
 import { HealthVM } from '../features/healthStatus/viewmodel/HealthVM';
@@ -9,13 +9,17 @@ import { SleepData } from '../common/model/SleepData';
 import { HealthDB } from '../database/HealthDB';
 import { AuthUtil } from '../common/utils/AuthUtil';
 import { image } from '@kit.ImageKit';
+import sensor from '@ohos.sensor'; // 引入传感器模块
+import abilityAccessCtrl from '@ohos.abilityAccessCtrl';
+import common from '@ohos.app.ability.common';
+import { BusinessError } from '@kit.BasicServicesKit';
 
-// --- 全局配色常量 (与 ExploreView 保持一致) ---
-const COLOR_BG_BASE = '#FFFFFF'; // 纯白底色，让光晕更透亮
+// --- 全局配色常量 ---
+const COLOR_BG_BASE = '#FFFFFF';
 const COLOR_PRIMARY = '#4A90E2';
 const COLOR_ACCENT = '#FF6B6B';
-const CARD_BG_GRADIENT_START = 'rgba(255, 255, 255, 0.85)'; // 卡片渐变起始
-const CARD_BG_GRADIENT_END = 'rgba(255, 255, 255, 0.4)';   // 卡片渐变结束
+const CARD_BG_GRADIENT_START = 'rgba(255, 255, 255, 0.85)';
+const CARD_BG_GRADIENT_END = 'rgba(255, 255, 255, 0.4)';
 
 @Component
 struct HealthItemComponent {
@@ -28,24 +32,20 @@ struct HealthItemComponent {
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
-      // 1. 装饰背景：右上角的半透明大圆环
       Circle({ width: 80, height: 80 })
         .fill('transparent')
         .stroke(this.themeColor)
         .strokeWidth(12)
-        .opacity(0.08) // 稍微增加一点可见度
+        .opacity(0.08)
         .margin({ top: -20, right: -20 })
         .blur(15)
 
-      // 2. 主要内容
       Column() {
-        // 头部：图标 + 标题
         Row() {
           Stack({ alignContent: Alignment.Center }) {
             Circle({ width: 32, height: 32 })
               .fill(this.themeColor)
               .opacity(0.15)
-
             Image(this.icon)
               .width(16)
               .height(16)
@@ -57,13 +57,12 @@ struct HealthItemComponent {
           Text(this.title)
             .fontSize(13)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#555') // 字体稍微加深
+            .fontColor('#555')
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
         .margin({ bottom: 12 })
 
-        // 数值显示
         Row() {
           Text(this.value)
             .fontSize(24)
@@ -83,18 +82,15 @@ struct HealthItemComponent {
       .padding(18)
       .width('100%')
       .borderRadius(24)
-      // 玻璃拟态背景：更通透，以展示下方鲜艳的背景
       .linearGradient({
         angle: 135,
         colors: [[CARD_BG_GRADIENT_START, 0.0], [CARD_BG_GRADIENT_END, 1.0]]
       })
-      .backdropBlur(40) // 高斯模糊
-      // 边框
+      .backdropBlur(40)
       .border({
         width: 1.5,
-        color: this.themeColor.startsWith('#') ? ('#66' + this.themeColor.substring(1)) : this.themeColor // 降低边框透明度
+        color: this.themeColor.startsWith('#') ? ('#66' + this.themeColor.substring(1)) : this.themeColor
       })
-      // 阴影
       .shadow({
         radius: 40,
         color: this.themeColor.startsWith('#') ? ('#30' + this.themeColor.substring(1)) : 'rgba(0,0,0,0.1)',
@@ -112,65 +108,105 @@ struct HealthItemComponent {
 struct HomePage {
   @State currentData: HealthData = new HealthData(0, 0, 0, 0);
   @State todaySleep: SleepData | null = null;
-  @State todaySteps: number = 0;
-  
-  // 修改：添加 @Watch 监听，并配合 displayAvatar 实现强制刷新
+  @State todaySteps: number = 0; // 这个变量将由传感器驱动
+
   @StorageProp('avatar') @Watch('onAvatarChange') currentUserAvatar: string | Resource = $r('app.media.profileIcon');
-  // 新增：用于实际显示的头像状态（支持 PixelMap 以强制刷新）
   @State displayAvatar: string | Resource | image.PixelMap = $r('app.media.profileIcon');
 
   private healthVM: HealthVM = new HealthVM();
 
-  private handleLogout(): void {
-    AlertDialog.show({
-      title: '退出登录',
-      message: '确定要退出当前登录吗？',
-      autoCancel: true,
-      alignment: DialogAlignment.Bottom,
-      gridCount: 4,
-      primaryButton: {
-        value: '取消',
-        action: () => {}
-      },
-      secondaryButton: {
-        value: '退出登录',
-        fontColor: Color.Red,
-        action: () => { this.executeLogoutAction() }
-      }
-    })
+  // --- 传感器监听逻辑 Start ---
+
+  /**
+   * 启动步数传感器监听
+   * 注意：模拟器的 Pedometer 数据会直接触发此回调
+   */
+  private startStepSensor() {
+    try {
+      // 订阅 SensorId.PEDOMETER
+      sensor.on(sensor.SensorId.PEDOMETER, (data) => {
+        // data.steps 是累计步数
+        console.info(`[HomePage] Sensor Callback Triggered! Raw Steps: ${data.steps}`);
+
+        // 强制刷新 UI (ArkTS 有时对数值变化不敏感，加个 Math.floor 确保是整数)
+        this.todaySteps = Math.floor(data.steps);
+        AppStorage.setOrCreate('globalStepCount', this.todaySteps);
+      }, { interval: 100000000 }); // 0.1秒采样
+
+      console.info('[HomePage] sensor.on executed successfully');
+    } catch (err) {
+      console.error('[HomePage] Failed to start sensor (Try-Catch):', JSON.stringify(err));
+    }
   }
 
-  private async executeLogoutAction(): Promise<void> {
-    AppStorage.setOrCreate('isLogin', false);
-    AppStorage.setOrCreate('currentUser', null);
-    AppStorage.setOrCreate('BodyInfoList', []);
-
-    this.getUIContext().getRouter().replaceUrl({
-      url: 'pages/LoginPage'
-    }).catch((err: Error) => {
-      console.error(`Navigation failed: ${err.message}`);
-    });
+  /**
+   * 停止传感器监听
+   */
+  private stopStepSensor() {
+    try {
+      sensor.off(sensor.SensorId.PEDOMETER);
+    } catch (err) {
+      console.error('[HomePage] Failed to stop sensor:', JSON.stringify(err));
+    }
   }
+
+  // --- 传感器监听逻辑 End ---
 
   async aboutToAppear() {
     const context = this.getUIContext().getHostContext() as Context;
+
+    // 1. 加载基本数据
     const lastData = await this.healthVM.loadLastData(context);
     if (lastData) this.currentData = lastData;
-
-    await this.loadTodaySteps();
+    await this.loadTodaySteps(); // 加载数据库里的旧数据作为兜底
     await this.loadSleepData();
-    this.loadAvatar(); // 初始加载
+    this.loadAvatar();
+
+    // 2. [关键] 动态申请权限，成功后再启动传感器
+    this.reqPermissionsAndStartSensor();
   }
 
-  // 新增：头像加载逻辑
+  // [新增] 动态权限申请函数
+  private reqPermissionsAndStartSensor() {
+    let atManager = abilityAccessCtrl.createAtManager();
+    let context = getContext(this) as common.UIAbilityContext;
+
+    try {
+      // 申请 ACTIVITY_MOTION 权限
+      atManager.requestPermissionsFromUser(context, ['ohos.permission.ACTIVITY_MOTION'])
+        .then((data) => {
+          // data.authResults[0] === 0 表示用户点击了“允许”
+          if (data.authResults.length > 0 && data.authResults[0] === 0) {
+            console.info('[HomePage] Permission granted, starting sensor...');
+            this.startStepSensor();
+          } else {
+            console.error('[HomePage] User denied permission');
+            // 可以弹窗提示用户去设置里开启
+          }
+        })
+        .catch((err: Object) => {
+          console.error(`[HomePage] Request permission failed: ${JSON.stringify(err)}`);
+        })
+    } catch (err) {
+      console.error(`[HomePage] Auth catch err: ${JSON.stringify(err)}`);
+    }
+  }
+
+  // 页面销毁时务必关闭传感器
+  aboutToDisappear() {
+    this.healthVM.stopMonitoring();
+    this.stopStepSensor();
+  }
+
+  onAvatarChange() {
+    this.loadAvatar();
+  }
+
   private async loadAvatar() {
-    // 如果是 Resource 或非文件路径，直接使用
     if (typeof this.currentUserAvatar !== 'string' || !this.currentUserAvatar.startsWith('file://')) {
       this.displayAvatar = this.currentUserAvatar;
       return;
     }
-
-    // 如果是本地文件，通过 PixelMap 加载以绕过 Image 组件的 URI 缓存
     try {
       const imageSource = image.createImageSource(this.currentUserAvatar);
       const pixelMap = await imageSource.createPixelMap();
@@ -179,11 +215,6 @@ struct HomePage {
       console.error('Load avatar failed:', e);
       this.displayAvatar = this.currentUserAvatar;
     }
-  }
-
-  // 监听 AppStorage 变化
-  onAvatarChange() {
-    this.loadAvatar();
   }
 
   private async loadTodaySteps() {
@@ -200,6 +231,7 @@ struct HomePage {
       const d = new Date(item.timestamp);
       return d.toISOString().split('T')[0] === todayStr;
     });
+    // 只有在传感器未启动前，这个值才会短暂显示，随后会被 sensor.on 的回调覆盖
     this.todaySteps = todayItem ? todayItem.steps : 0;
   }
 
@@ -217,23 +249,27 @@ struct HomePage {
     const context = this.getUIContext().getHostContext() as Context;
     this.healthVM.startMonitoring(context, 3000, async (data: HealthData) => {
       this.currentData = data;
-      await this.loadTodaySteps();
+      // 注意：这里不再调用 loadTodaySteps，以免覆盖掉传感器的实时数据
+      // await this.loadTodaySteps();
     });
     this.loadSleepData();
-    this.loadAvatar(); // 每次页面显示时强制刷新头像（解决从个人中心返回时不刷新的问题）
+    this.loadAvatar();
+
+    // 页面重新显示时，确保传感器是开启的
+    this.startStepSensor();
   }
 
-  onPageHide() { this.healthVM.stopMonitoring(); }
-  aboutToDisappear() { this.healthVM.stopMonitoring(); }
+  onPageHide() {
+    this.healthVM.stopMonitoring();
+    // 页面隐藏时可以暂停传感器以省电
+    this.stopStepSensor();
+  }
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      // --- 1. 背景层 (更新：与 ExploreView 一致的鲜艳色块) ---
       this.BackgroundDecorations()
 
-      // --- 2. 主内容区域 ---
       Column() {
-        // Header
         Row() {
           Column() {
             Text('Harmony Health')
@@ -250,8 +286,6 @@ struct HomePage {
 
           Blank()
 
-          // 头像
-          // 修改：使用 this.displayAvatar 替代 this.currentUserAvatar
           Image(this.displayAvatar || $r('app.media.profileIcon'))
             .width(42)
             .height(42)
@@ -269,12 +303,10 @@ struct HomePage {
 
         Scroll() {
           Column({ space: 16 }) {
-            // 人体模型卡片 - Hero Card
             Stack({ alignContent: Alignment.TopStart }) {
-              // 卡片内部装饰
               Circle({ width: 140, height: 140 })
                 .fill('#5C7CFF')
-                .opacity(0.1) // 略微提高
+                .opacity(0.1)
                 .position({ x: '60%', y: -30 })
                 .blur(30)
 
@@ -300,7 +332,6 @@ struct HomePage {
 
                   Blank()
 
-                  // 按钮
                   Row() {
                     Text('查看详情')
                       .fontSize(12)
@@ -327,7 +358,6 @@ struct HomePage {
             }
             .width('100%')
             .borderRadius(28)
-            // 玻璃拟态
             .linearGradient({
               angle: 135,
               colors: [[CARD_BG_GRADIENT_START, 0.0], [CARD_BG_GRADIENT_END, 1.0]]
@@ -339,11 +369,10 @@ struct HomePage {
               this.getUIContext().getRouter().pushUrl({ url: 'pages/HomeTo/BodyInfoPage' })
             })
 
-            // 双列布局
             Row({ space: 14 }) {
               HealthItemComponent({
                 title: '今日步数',
-                value: `${this.todaySteps}`,
+                value: `${this.todaySteps}`, // 这里绑定了 state，会自动更新
                 unit: '步',
                 themeColor: '#FF7043',
                 pageName: 'pages/HomeTo/StepsPage',
@@ -362,7 +391,6 @@ struct HomePage {
                 .layoutWeight(1)
             }
 
-            // 实时状态卡片
             HealthItemComponent({
               title: '实时健康监测',
               value: `${this.currentData.heartRate} bpm  |  ${this.currentData.bloodOxygen}%`,
@@ -372,7 +400,6 @@ struct HomePage {
               icon: $r('app.media.instantcheck')
             })
 
-            // 疾病历史
             HealthItemComponent({
               title: '疾病历史档案',
               value: '查看记录',
@@ -393,45 +420,31 @@ struct HomePage {
       .height('100%')
       .padding({ bottom: 56 })
 
-      // 3. 底部导航栏
       myNavigator()
-
     }
     .width('100%')
     .height('100%')
     .backgroundColor(COLOR_BG_BASE)
   }
 
-  /**
-   * 构建背景装饰层
-   * 与 ExploreView 风格统一：鲜艳、高模糊、白底
-   */
   @Builder
   BackgroundDecorations(): void {
     Stack() {
-      // 1. 左上角 - 主色调蓝色 (Blue)
-      // 略微调大尺寸，覆盖 Header 区域
       Circle({ width: 320, height: 320 })
-        .fill('rgba(74, 144, 226, 0.35)') // Opacity 0.35
+        .fill('rgba(74, 144, 226, 0.35)')
         .position({ x: -80, y: -100 })
         .blur(80)
 
-      // 2. 右侧中部 - 活力紫色 (Purple)
-      // 对应“身体档案”和“睡眠”卡片位置
       Circle({ width: 280, height: 280 })
         .fill('rgba(108, 92, 231, 0.35)')
         .position({ x: '60%', y: 150 })
         .blur(70)
 
-      // 3. 左下方 - 暖色强调 (Red/Pink)
-      // 对应“步数”位置
       Circle({ width: 300, height: 300 })
         .fill('rgba(255, 107, 107, 0.25)')
         .position({ x: -100, y: 400 })
         .blur(90)
 
-      // 4. 右下角 - 清新绿色 (Green)
-      // 对应“实时监测”和底部
       Circle({ width: 240, height: 240 })
         .fill('rgba(46, 204, 113, 0.25)')
         .position({ x: '50%', y: '85%' })

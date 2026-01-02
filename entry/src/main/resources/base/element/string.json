@@ -35,6 +35,10 @@
     {
       "name": "reason_read_media",
       "value": "应用需要访问您的媒体文件以选择和上传图片"
+    },
+    {
+      "name": "reason_motion",
+      "value": "步数与传感器数据对应"
     }
   ]
 }

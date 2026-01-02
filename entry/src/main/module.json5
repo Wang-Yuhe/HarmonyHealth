@@ -107,6 +107,16 @@
           "abilities": ["EntryAbility"],     // 使用该权限的Ability
           "when": "always"                   // 使用时机
         }
+      },
+      {
+        "name": "ohos.permission.ACTIVITY_MOTION",
+        "reason": "$string:reason_motion",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
       }
     ],
     // 新增自定义权限声明（可选）

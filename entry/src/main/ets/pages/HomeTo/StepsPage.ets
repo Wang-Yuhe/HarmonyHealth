@@ -1,9 +1,9 @@
-// StepsPage.ets 步数情况页面 (UI 优化版)
+// StepsPage.ets
 import { BackButton } from '../../common/components/BackButton'
 import { HealthDB } from '../../database/HealthDB';
 import { HealthData } from '../../common/model/HealthData';
 import { AuthUtil } from '../../common/utils/AuthUtil';
-import { Context } from '@kit.AbilityKit'; // ✅ 补上 Context 引用
+import { Context } from '@kit.AbilityKit';
 
 @Component
 struct StatCard {
@@ -52,7 +52,11 @@ struct StatCard {
 @Component
 struct StepsPage {
   @State stepsData: HealthData[] = [];
-  @State todaySteps: number = 0;     // 👈 今日步数（只来自数据库）
+
+  // [修改 1] 使用 @StorageProp 接收全局步数
+  // 如果 AppStorage 里没值，默认 0。一旦 HomePage 更新，这里自动变。
+  @StorageProp('globalStepCount') realTimeSteps: number = 0;
+
   @State maxSteps: number = 1;
   @State minSteps: number = 0;
   @State avgSteps: number = 0;
@@ -65,22 +69,24 @@ struct StepsPage {
     const user = await AuthUtil.getLoginUser(context);
     if (!user) return;
 
-    // 只为“过去几天”补模拟数据，不写今天
     await HealthDB.getInstance().initMockHealthData(user.id, 7);
-
-    // 从数据库按天汇总最近 7 天
     this.stepsData = await HealthDB.getInstance().getDailyStepsSummary(user.id, 7);
 
     if (this.stepsData.length > 0) {
-      // === 核心：从 DB 汇总结果里拿“今天”的步数 ===
+      // [修改 2] 强制更新图表数组中“今天”的数据，使其与传感器一致
+      // 防止图表显示 110，而大数字显示 5000 的情况
       const todayStr = new Date().toISOString().split('T')[0];
-      const todayItem = this.stepsData.find(item => {
+      const todayIndex = this.stepsData.findIndex(item => {
         const d = new Date(item.timestamp);
         return d.toISOString().split('T')[0] === todayStr;
       });
-      this.todaySteps = todayItem ? todayItem.steps : 0;
 
-      // 下面这些统计依然基于 DB 的 7 天汇总
+      // 如果全局步数大于数据库记录的步数，优先使用全局步数（传感器数据）
+      if (todayIndex !== -1 && this.realTimeSteps > this.stepsData[todayIndex].steps) {
+        this.stepsData[todayIndex].steps = this.realTimeSteps;
+      }
+
+      // 重新计算统计数据
       this.maxSteps = Math.max(...this.stepsData.map(d => d.steps));
       this.minSteps = Math.min(...this.stepsData.map(d => d.steps));
 
@@ -96,8 +102,6 @@ struct StepsPage {
       if (this.maxSteps === this.minSteps) {
         this.minSteps = Math.max(0, this.maxSteps - 100);
       }
-    } else {
-      this.todaySteps = 0;
     }
   }
 
@@ -105,19 +109,24 @@ struct StepsPage {
     await this.refreshData();
   }
 
-  onPageShow() {
-    // 每次返回本页时重新从数据库拉一遍，保证“当前步数”与 DB 同步
+  // [修改 3] 监听 realTimeSteps 的变化，一旦变化立即刷新图表数据
+  // 这样你在步数页挂着的时候，图表也会跟着动
+  @Watch('onStepsChange')
+  @StorageProp('globalStepCount')
+  watchSteps: number = 0;
+
+  onStepsChange() {
     this.refreshData();
   }
 
-  // 动态计算高度，放大变化趋势
-  getBarHeight(val: number): number {
-    const minHeight = 20; // 最小高度
-    const maxHeight = 150; // 最大高度
-    
-    if (this.maxSteps === this.minSteps) return minHeight;
+  onPageShow() {
+    this.refreshData();
+  }
 
-    // 归一化计算
+  getBarHeight(val: number): number {
+    const minHeight = 20;
+    const maxHeight = 150;
+    if (this.maxSteps === this.minSteps) return minHeight;
     let percentage = (val - this.minSteps) / (this.maxSteps - this.minSteps);
     return minHeight + percentage * (maxHeight - minHeight);
   }
@@ -127,8 +136,6 @@ struct StepsPage {
       Column() {
         // 1. 顶部 Hero Card
         Column() {
-          // 标题栏占位
-          // 使用 Stack 将 BackButton 整合进标题栏，防止遮挡
           Stack({ alignContent: Alignment.Center }) {
             Text('步数趋势')
               .fontSize(20)
@@ -140,19 +147,20 @@ struct StepsPage {
             }
             .width('100%')
             .justifyContent(FlexAlign.Start)
-            .padding({ left: 16 }) // 给按钮留出边距
+            .padding({ left: 16 })
           }
           .width('100%')
           .height(56)
           .margin({ top: 10 })
 
-          // 核心数据展示
           Row() {
             Column() {
-              Text('今日步数')                       //  改文案
+              Text('今日步数')
                 .fontSize(14)
                 .fontColor('rgba(255,255,255,0.9)')
-              Text(`${this.todaySteps}`)             // 直接显示 DB 中的今日步数
+
+              // [修改 4] 这里直接显示实时步数，如果实时步数为0（还没传过来），兜底显示 DB 数据
+              Text(`${this.realTimeSteps > 0 ? this.realTimeSteps : (this.stepsData.length > 0 ? this.stepsData[this.stepsData.length-1].steps : 0)}`)
                 .fontSize(40)
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#FFFFFF')
@@ -180,7 +188,7 @@ struct StepsPage {
         .width('100%')
         .linearGradient({
           angle: 135,
-          colors: [['#FF7E5F', 0.0], ['#FEB47B', 1.0]] // 暖色调：日落橙
+          colors: [['#FF7E5F', 0.0], ['#FEB47B', 1.0]]
         })
         .borderRadius({ bottomLeft: 32, bottomRight: 32 })
         .shadow({ radius: 20, color: 'rgba(255, 126, 95, 0.3)', offsetY: 10 })
@@ -193,41 +201,37 @@ struct StepsPage {
             .fontColor('#333')
             .width('100%')
             .padding({ left: 24, top: 24, bottom: 10 })
-          
+
           if (this.stepsData.length > 0) {
             List({ space: 14 }) {
               ForEach(this.stepsData, (item: HealthData) => {
                 ListItem() {
                   Column() {
-                    // 柱子背景槽
                     Stack({ alignContent: Alignment.Bottom }) {
                       Column()
                         .width(8)
                         .height(150)
                         .backgroundColor('#F0F0F0')
                         .borderRadius(4)
-                      
-                      // 实际柱子
+
                       Column()
                         .width(8)
                         .height(this.getBarHeight(item.steps))
                         .linearGradient({
                           angle: 180,
-                          colors: item.steps >= this.avgSteps 
-                            ? [['#FF7E5F', 0.0], ['#FEB47B', 1.0]] 
+                          colors: item.steps >= this.avgSteps
+                            ? [['#FF7E5F', 0.0], ['#FEB47B', 1.0]]
                             : [['#BDC3C7', 0.0], ['#E0E0E0', 1.0]]
                         })
                         .borderRadius(4)
                         .shadow({ radius: 4, color: 'rgba(255, 126, 95, 0.2)', offsetY: 2 })
                     }
-                    
-                    // 数值
+
                     Text(`${item.steps}`)
                       .fontSize(10)
                       .fontColor('#999')
                       .margin({ top: 8 })
 
-                    // 日期
                     Text(`${(new Date(item.timestamp).getMonth() + 1).toString().padStart(2, '0')}-${new Date(item.timestamp).getDate().toString().padStart(2, '0')}`)
                       .fontSize(10)
                       .fontColor('#CCC')
